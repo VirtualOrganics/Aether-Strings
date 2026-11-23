@@ -1,0 +1,1868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flapping Vibrations v2.0 — Adaptive Wave Medium</title>
+<style>
+  :root {
+    --bg: #0b0e12;
+    --panel: #12171f;
+    --border: #232c3a;
+    --text: #dce4ee;
+    --muted: #8896a8;
+    --accent: #f07d32;
+    --accent2: #3dd6c6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #07090c;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
+  #hud {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(12, 16, 22, 0.82);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+  }
+  #hud .key {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: #1e2633;
+    border: 1px solid #323e52;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: #fff;
+  }
+  #sidebar {
+    width: 300px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 12.5px;
+  }
+  h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: #fff;
+  }
+  .subtitle {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .archive-link {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--accent2);
+    text-decoration: none;
+  }
+  .archive-link:hover {
+    text-decoration: underline;
+  }
+  .section {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--muted);
+  }
+  .btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  button {
+    background: #1a222e;
+    color: var(--text);
+    border: 1px solid #2b3748;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  button:hover {
+    background: #232e3f;
+    border-color: #3d4e66;
+  }
+  button.active {
+    background: rgba(240, 125, 50, 0.18);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .control {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .control-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+  }
+  .control-val {
+    font-family: ui-monospace, monospace;
+    color: var(--accent2);
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .legend {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+  <div id="canvas-wrap">
+    <canvas id="glcanvas"></canvas>
+    <div id="hud">
+      <div><strong id="mode-label">Test: Closed Ring (14)</strong> &nbsp;|&nbsp; Grid: <strong>128 × 80</strong> (10,240 cells)</div>
+      <div id="stats-line">Time: 0.0s &nbsp;|&nbsp; FPS: 60 &nbsp;|&nbsp; Zoom: 1.0×</div>
+      <div style="margin-top:4px;color:#9aa8ba;">
+        <span class="key">Space</span> Hold/Toggle Zoom &nbsp;
+        <span class="key">P</span> Pause &nbsp;
+        <span class="key">Drag</span> Draw aligned chain
+      </div>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div>
+      <h1>Flapping Vibrations v2.0</h1>
+      <div class="subtitle">Adaptive Wave Medium (Carved Dips, Bow Peaks &amp; Shoulders)</div>
+      <a class="archive-link" href="stage1-milestone.html">Stage 1 archive &rarr;</a>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Presets / Test Bench</div>
+      <div class="btn-grid">
+        <button id="btn-single">1. Single Bird</button>
+        <button id="btn-chain">2. Open Chain</button>
+        <button id="btn-ring" class="active">3. Closed Ring</button>
+        <button id="btn-soup">4. Pure Soup</button>
+        <button id="btn-ring-soup">5. Ring + Soup</button>
+        <button id="btn-headon">6. Head-On Test</button>
+      </div>
+      <div class="btn-grid">
+        <button id="btn-pause">Pause (P)</button>
+        <button id="btn-zoom">Zoom In (Space)</button>
+        <button id="btn-freeze-spawn">Stop Spawn (0)</button>
+        <button id="btn-clear">Clear Grid</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Oscillator &amp; Lifespan</div>
+      <div class="control">
+        <div class="control-header"><span>Lifespan (isolated)</span><span class="control-val" id="val-lifespan">2.0 s</span></div>
+        <input type="range" id="sl-lifespan" min="0.5" max="6.0" step="0.1" value="2.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Flap Frequency</span><span class="control-val" id="val-freq">2.5 Hz</span></div>
+        <input type="range" id="sl-freq" min="0.5" max="6.0" step="0.1" value="2.5" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Flap Amplitude (speed)</span><span class="control-val" id="val-amp">1.60</span></div>
+        <input type="range" id="sl-amp" min="0.4" max="3.5" step="0.05" value="1.60" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Spontaneous Spawn Rate</span><span class="control-val" id="val-spawn">0.00</span></div>
+        <input type="range" id="sl-spawn" min="0.0" max="0.60" step="0.005" value="0.00" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Adaptive Medium (ffGXRW-style)</div>
+      <div class="control">
+        <div class="control-header"><span>Medium Carve (dip/peak)</span><span class="control-val" id="val-carve">1.35</span></div>
+        <input type="range" id="sl-carve" min="0.0" max="3.0" step="0.05" value="1.35" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Medium Wave Speed</span><span class="control-val" id="val-wavespeed">5.5</span></div>
+        <input type="range" id="sl-wavespeed" min="0.0" max="14.0" step="0.2" value="5.5" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Medium Damping</span><span class="control-val" id="val-wavedamp">2.4</span></div>
+        <input type="range" id="sl-wavedamp" min="0.5" max="8.0" step="0.1" value="2.4" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Medium Refill Rate</span><span class="control-val" id="val-restore">0.45</span></div>
+        <input type="range" id="sl-restore" min="0.05" max="2.0" step="0.05" value="0.45" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Medium Refraction</span><span class="control-val" id="val-refract">2.2</span></div>
+        <input type="range" id="sl-refract" min="0.0" max="6.0" step="0.1" value="2.2" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Drafting &amp; Rowing Coupling</div>
+      <div class="control">
+        <div class="control-header"><span>Draft Cone Half-Angle</span><span class="control-val" id="val-cone">42°</span></div>
+        <input type="range" id="sl-cone" min="15" max="75" step="1" value="42" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Draft Reach (cells)</span><span class="control-val" id="val-reach">2.1</span></div>
+        <input type="range" id="sl-reach" min="1.1" max="2.8" step="0.05" value="2.1" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Steering Strength</span><span class="control-val" id="val-steer">4.5</span></div>
+        <input type="range" id="sl-steer" min="0.0" max="10.0" step="0.2" value="4.5" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Phase Sync Pull</span><span class="control-val" id="val-sync">4.0</span></div>
+        <input type="range" id="sl-sync" min="0.0" max="10.0" step="0.2" value="4.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Cruise Speed (synced)</span><span class="control-val" id="val-cruise">2.60 c/s</span></div>
+        <input type="range" id="sl-cruise" min="0.5" max="6.0" step="0.1" value="2.6" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Rear-Brace Coupling</span><span class="control-val" id="val-brace">0.55</span></div>
+        <input type="range" id="sl-brace" min="0.0" max="1.0" step="0.05" value="0.55" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Bow Pressure (frontal)</span><span class="control-val" id="val-bow">2.40</span></div>
+        <input type="range" id="sl-bow" min="0.0" max="6.0" step="0.1" value="2.4" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Bow Kill-Force (vs solo)</span><span class="control-val" id="val-kill">2.50</span></div>
+        <input type="range" id="sl-kill" min="0.0" max="6.0" step="0.1" value="2.5" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Draft Suction (pull-in)</span><span class="control-val" id="val-suction">2.20</span></div>
+        <input type="range" id="sl-suction" min="0.0" max="4.0" step="0.1" value="2.2" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Wing-Tip Vortex (flank)</span><span class="control-val" id="val-vortex">2.40</span></div>
+        <input type="range" id="sl-vortex" min="0.0" max="5.0" step="0.1" value="2.4" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Rear Life-Sustain (leader)</span><span class="control-val" id="val-rearsustain">0.75</span></div>
+        <input type="range" id="sl-rearsustain" min="0.0" max="1.05" step="0.05" value="0.75" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Wing-Pocket Curl (off-center)</span><span class="control-val" id="val-offcenter">0.85</span></div>
+        <input type="range" id="sl-offcenter" min="0.0" max="2.0" step="0.05" value="0.85" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Display</div>
+      <label class="toggle-row">
+        <span>Show Adaptive Medium</span>
+        <input type="checkbox" id="chk-medium" checked />
+      </label>
+      <label class="toggle-row">
+        <span>Show Draft, Bow &amp; Vortex</span>
+        <input type="checkbox" id="chk-cones" checked />
+      </label>
+      <label class="toggle-row">
+        <span>Show Cell Grid (zoomed)</span>
+        <input type="checkbox" id="chk-grid" checked />
+      </label>
+      <div class="legend" style="margin-top:4px;">
+        <div class="legend-item"><span class="swatch" style="background:#f07d32;"></span>Isolated oscillator (decays in ~2s)</div>
+        <div class="legend-item"><span class="swatch" style="background:#3dd6c6;"></span>Drafting / sustained in wake</div>
+        <div class="legend-item"><span class="swatch" style="background:#ffe066;"></span>Strongly locked loop / chain</div>
+        <div class="legend-item"><span class="swatch" style="background:#0aa6f0;"></span>Carved Medium dip (low-density trough)</div>
+        <div class="legend-item"><span class="swatch" style="background:#f59e2d;"></span>Compressed Medium peak / shoulders</div>
+        <div class="legend-item"><span class="swatch" style="background:rgba(175,130,245,0.55);"></span>Wing-tip vortex (lateral cover)</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const NX = 128;
+  const NY = 80;
+  const canvas = document.getElementById('glcanvas');
+  const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
+  if (!gl) {
+    alert('WebGL2 is required.');
+    return;
+  }
+  const extFloat = gl.getExtension('EXT_color_buffer_float');
+  if (!extFloat) {
+    alert('EXT_color_buffer_float is required.');
+    return;
+  }
+
+  // --- Parameters ---
+  const params = {
+    lifespan: 2.0,
+    freq: 2.5,
+    amp: 1.60,
+    spawn: 0.0,
+    mediumCarve: 1.35,
+    waveSpeed: 5.5,
+    waveDamping: 2.4,
+    mediumRestore: 0.45,
+    mediumRefract: 2.2,
+    coneDeg: 42,
+    reach: 2.1,
+    steer: 4.5,
+    sync: 4.0,
+    cruiseSpeed: 2.6,
+    brace: 0.55,
+    bowPressure: 2.4,
+    bowKill: 2.5,
+    draftSuction: 2.2,
+    vortex: 2.4,
+    rearSustain: 0.75,
+    offCenter: 0.85,
+    showMedium: true,
+    showCones: true,
+    showGrid: true,
+    paused: false,
+    zoomed: true,
+    zoomCenter: [NX * 0.5, NY * 0.5],
+    modeName: 'Test: Closed Ring (14)'
+  };
+
+  // --- GL Helpers ---
+  const VS = `#version 300 es
+  in vec2 aPos;
+  out vec2 vUV;
+  void main() {
+    vUV = aPos * 0.5 + 0.5;
+    gl_Position = vec4(aPos, 0.0, 1.0);
+  }`;
+
+  function compileShader(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(s));
+      throw new Error(gl.getShaderInfoLog(s));
+    }
+    return s;
+  }
+
+  function createProgram(fsSrc) {
+    const p = gl.createProgram();
+    gl.attachShader(p, compileShader(gl.VERTEX_SHADER, VS));
+    gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fsSrc));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      console.error(gl.getProgramInfoLog(p));
+      throw new Error(gl.getProgramInfoLog(p));
+    }
+    return p;
+  }
+
+  function createFloatTex(w, h) {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, null);
+    return tex;
+  }
+
+  function createFBO(tex0, tex1) {
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex0, 0);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, tex1, 0);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+    return fbo;
+  }
+
+  function createSingleFBO(tex0) {
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex0, 0);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+    return fbo;
+  }
+
+  // Fullscreen quad
+  const quadBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+  const COMMON_GLSL = `
+  const ivec2 GRID = ivec2(${NX}, ${NY});
+  const float PI = 3.14159265359;
+  const float TAU = 6.28318530718;
+
+  ivec2 wrapCell(ivec2 c) {
+    return ((c % GRID) + GRID) % GRID;
+  }
+
+  float wrapAngle(float a) {
+    return mod(a + PI, TAU) - PI;
+  }
+
+  uint hashUint(uint x) {
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+  }
+
+  float rand01(ivec2 cell, uint seed) {
+    uint h = hashUint(uint(cell.x) + uint(cell.y) * 1973u + seed * 9277u);
+    return float(h >> 8) / 16777216.0;
+  }
+
+  // Evaluate whether point P (relative to emitter at origin) lies inside
+  // the emitter's trailing draft cone for active stroke direction 'actDir'.
+  float draftConeWeight(vec2 relFromEmitter, vec2 actDir, float size, float reach, float tanHalfAngle) {
+    float behind = dot(relFromEmitter, -actDir);
+    if (behind <= 0.25 || behind >= reach * size) return 0.0;
+    float lat = abs(relFromEmitter.x * (-actDir.y) + relFromEmitter.y * actDir.x);
+    float halfWidth = (0.18 * size) + behind * tanHalfAngle;
+    if (lat >= halfWidth) return 0.0;
+    float radialFade = 1.0 - smoothstep(0.35 * reach * size, reach * size, behind);
+    float nearFade = smoothstep(0.25, 0.65, behind);
+    float latFade = 1.0 - smoothstep(0.45 * halfWidth, halfWidth, lat);
+    return nearFade * radialFade * latFade;
+  }
+
+  // Inverse to draft cone: frontal & outward compression bow wave ahead of active stroke.
+  float bowCompressionWeight(vec2 relFromEmitter, vec2 actDir, float size, float reach, float tanHalfAngle) {
+    float ahead = dot(relFromEmitter, actDir);
+    float bowReach = reach * 0.80 * size;
+    if (ahead <= -0.15 * size || ahead >= bowReach) return 0.0;
+    float lat = abs(relFromEmitter.x * (-actDir.y) + relFromEmitter.y * actDir.x);
+    float halfWidth = (0.48 * size) + max(ahead, 0.0) * (tanHalfAngle * 0.85);
+    if (lat >= halfWidth) return 0.0;
+    float dist = length(relFromEmitter);
+    float radialFade = 1.0 - smoothstep(0.25 * bowReach, bowReach, dist);
+    float frontGate = smoothstep(-0.15 * size, 0.25 * size, ahead);
+    float latFade = 1.0 - smoothstep(0.45 * halfWidth, halfWidth, lat);
+    return frontGate * radialFade * latFade;
+  }
+
+  // Wing-tip vortices bridging the lateral gap between the frontal bow wave and trailing draft cone.
+  // Returns vec3(pushDir.x, pushDir.y, strength) sweeping flank intruders outward and backward.
+  vec3 wingTipVortexField(vec2 relFromEmitter, vec2 actDir, float size) {
+    vec2 perp = vec2(-actDir.y, actDir.x);
+    float side = dot(relFromEmitter, perp);
+    float sideSign = side >= 0.0 ? 1.0 : -1.0;
+    vec2 outPerp = perp * sideSign;
+
+    // Wing-tip center sits slightly behind the nose and outboard at the wing edge
+    vec2 tipPos = -actDir * (0.14 * size) + outPerp * (0.42 * size);
+    vec2 vRel = relFromEmitter - tipPos;
+    float dTip = length(vRel);
+    float radius = 0.92 * size;
+    if (dTip >= radius) return vec3(0.0);
+
+    // Keep centerline (lat < 0.22) clear for synced leader-follower drafting
+    float flankMask = smoothstep(0.18 * size, 0.38 * size, abs(side));
+    float falloff = (1.0 - smoothstep(0.15 * radius, radius, dTip)) * flankMask;
+
+    // Counter-rotating wing-tip swirl + outward/backward lateral wash
+    vec2 swirl = vec2(vRel.y, -vRel.x) * sideSign;
+    float swirlLen = length(swirl);
+    vec2 swirlDir = swirlLen > 1e-4 ? swirl / swirlLen : outPerp;
+    vec2 sweepDir = normalize(outPerp * 0.72 - actDir * 0.55 + swirlDir * 0.45);
+    return vec3(sweepDir, falloff);
+  }
+  `;
+
+  // --- PASS 0: Real Adaptive Scalar Wave Medium (content, rate, cosPhase, sinPhase) ---
+  const MEDIUM_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uMedium;
+  uniform sampler2D uStateA;
+  uniform sampler2D uStateB;
+  uniform float uDt;
+  uniform float uFreq;
+  uniform float uMediumCarve;
+  uniform float uWaveSpeed;
+  uniform float uWaveDamping;
+  uniform float uMediumRestore;
+
+  out vec4 outMedium;
+
+  ${COMMON_GLSL}
+
+  float dispAt(ivec2 c) {
+    return texelFetch(uMedium, wrapCell(c), 0).r - 1.0;
+  }
+
+  void main() {
+    ivec2 cell = ivec2(floor(gl_FragCoord.xy));
+    vec4 cur = texelFetch(uMedium, cell, 0);
+    float content = clamp(cur.r, 0.0, 1.65);
+    float rate = clamp(cur.g, -6.0, 6.0);
+    vec2 ph = cur.ba;
+
+    // 1) 9-point isotropic scalar wave equation (ffGXRW Buffer A stencil)
+    float centerDisp = content - 1.0;
+    float axial =
+        dispAt(cell + ivec2(1, 0))
+      + dispAt(cell + ivec2(-1, 0))
+      + dispAt(cell + ivec2(0, 1))
+      + dispAt(cell + ivec2(0, -1));
+    float diagonal =
+        dispAt(cell + ivec2(1, 1))
+      + dispAt(cell + ivec2(-1, 1))
+      + dispAt(cell + ivec2(1, -1))
+      + dispAt(cell + ivec2(-1, -1));
+    float lap = (4.0 * axial + diagonal - 20.0 * centerDisp) / 6.0;
+
+    float c = min(uWaveSpeed, 0.42 / max(uDt, 1e-4));
+    float accel = c * c * lap - uWaveDamping * rate - uMediumRestore * centerDisp;
+
+    float nextRate = rate + accel * uDt;
+    float nextContent = content + nextRate * uDt;
+
+    // Gentle acoustic phase diffusion, decay, and natural frequency rotation
+    vec2 axialPh =
+        texelFetch(uMedium, wrapCell(cell + ivec2(1, 0)), 0).ba
+      + texelFetch(uMedium, wrapCell(cell + ivec2(-1, 0)), 0).ba
+      + texelFetch(uMedium, wrapCell(cell + ivec2(0, 1)), 0).ba
+      + texelFetch(uMedium, wrapCell(cell + ivec2(0, -1)), 0).ba;
+    ph = mix(ph, axialPh * 0.25, clamp(uDt * 2.5, 0.0, 0.25));
+    ph *= exp(-uDt * max(uMediumRestore * 2.2, 0.4));
+
+    float dPhi = TAU * uFreq * uDt;
+    float cs = cos(dPhi), sn = sin(dPhi);
+    ph = vec2(cs * ph.x - sn * ph.y, sn * ph.x + cs * ph.y);
+
+    // 2) Mass-conserving bird -> Medium dipole transaction (dip behind, bow peak + shoulders ahead/aside)
+    float dipoleSum = 0.0;
+    if (uMediumCarve > 0.001) {
+      for (int dy = -2; dy <= 2; dy++) {
+        for (int dx = -2; dx <= 2; dx++) {
+          ivec2 nCell = wrapCell(cell + ivec2(dx, dy));
+          vec4 nB = texelFetch(uStateB, nCell, 0);
+          if (nB.r <= 0.001) continue;
+
+          vec4 nA = texelFetch(uStateA, nCell, 0);
+          vec2 nPos = vec2(float(dx), float(dy)) + nA.rg;
+          vec2 rel = -nPos; // vector from bird N to this cell's center (0,0)
+          if (dot(rel, rel) > 9.0) continue;
+
+          float nCruise = nB.b;
+          float nSize = nB.g;
+          float nFlap = sin(nA.a);
+          float nRect = smoothstep(0.05, 0.45, nCruise);
+          vec2 nDir = vec2(cos(nA.b), sin(nA.b));
+          vec2 nActDir = (nRect > 0.35) ? nDir : (nFlap >= 0.0 ? nDir : -nDir);
+          vec2 nPerp = vec2(-nActDir.y, nActDir.x);
+          float nPower = (nRect > 0.35)
+            ? (0.45 + 0.55 * nCruise) * (0.72 + 0.48 * max(nFlap, 0.0))
+            : abs(nFlap) * 0.38;
+
+          float ahead = dot(rel, nActDir);
+          float lat = abs(dot(rel, nPerp));
+
+          // Trailing carved dip (-) behind bird
+          float dip = exp(-(
+            pow((ahead + 0.85 * nSize) / (0.80 * nSize), 2.0)
+            + pow(lat / (0.72 * nSize), 2.0)
+          ));
+
+          // Frontal bow compression peak (+) ahead of bird
+          float bow = exp(-(
+            pow((ahead - 0.85 * nSize) / (0.75 * nSize), 2.0)
+            + pow(lat / (0.77 * nSize), 2.0)
+          ));
+
+          // Lateral compression shoulders (+) beside bird (ffGXRW-style)
+          float shL = exp(-(
+            pow((ahead + 0.15 * nSize) / (0.76 * nSize), 2.0)
+            + pow((lat - 1.20 * nSize) / (0.76 * nSize), 2.0)
+          ));
+          float shR = exp(-(
+            pow((ahead + 0.15 * nSize) / (0.76 * nSize), 2.0)
+            + pow((lat + 1.20 * nSize) / (0.76 * nSize), 2.0)
+          ));
+          float shoulders = 0.5 * (shL + shR);
+
+          float dipole = (0.62 * bow + 0.38 * shoulders) - dip;
+          dipoleSum += dipole * nPower * nB.r;
+
+          if (nCruise > 0.12 && dip > 0.05) {
+            float phStamp = dip * nCruise * nB.r * clamp(uDt * 7.0, 0.0, 0.85);
+            ph = mix(ph, vec2(cos(nA.a), sin(nA.a)), phStamp);
+          }
+        }
+      }
+    }
+
+    float dipoleDelta = clamp(dipoleSum * uMediumCarve * uDt, -0.35, 0.35);
+    nextContent = clamp(nextContent + dipoleDelta, 0.0, 1.65);
+    nextRate = clamp(nextRate + dipoleDelta * 2.2, -6.0, 6.0);
+
+    float phLen = length(ph);
+    if (phLen > 1.0) ph /= phLen;
+
+    outMedium = vec4(nextContent, nextRate, ph.x, ph.y);
+  }
+  `;
+
+  // --- PASS 1: Physics Update (in-place per occupied cell) ---
+  const UPDATE_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uStateA; // pos.xy, angle, phase
+  uniform sampler2D uStateB; // life, size, cruise, draftBond
+  uniform sampler2D uMedium; // Adaptive Medium: content, rate, cosPhase, sinPhase
+  uniform float uDt;
+  uniform float uLifespan;
+  uniform float uFreq;
+  uniform float uAmp;
+  uniform float uConeTan;
+  uniform float uReach;
+  uniform float uSteer;
+  uniform float uSync;
+  uniform float uCruiseSpeed;
+  uniform float uBrace;
+  uniform float uBowPressure;
+  uniform float uBowKill;
+  uniform float uDraftSuction;
+  uniform float uVortex;
+  uniform float uRearSustain;
+  uniform float uMediumCarve;
+  uniform float uOffCenter;
+  uniform float uMediumRefract;
+
+  layout(location = 0) out vec4 outA;
+  layout(location = 1) out vec4 outB;
+
+  ${COMMON_GLSL}
+
+  vec4 sampleMedium(vec2 worldPos) {
+    vec2 probeTex = worldPos - 0.5;
+    ivec2 b0 = ivec2(floor(probeTex));
+    vec2 f = fract(probeTex);
+    vec4 m00 = texelFetch(uMedium, wrapCell(b0), 0);
+    vec4 m10 = texelFetch(uMedium, wrapCell(b0 + ivec2(1, 0)), 0);
+    vec4 m01 = texelFetch(uMedium, wrapCell(b0 + ivec2(0, 1)), 0);
+    vec4 m11 = texelFetch(uMedium, wrapCell(b0 + ivec2(1, 1)), 0);
+    return mix(mix(m00, m10, f.x), mix(m01, m11, f.x), f.y);
+  }
+
+  void main() {
+    ivec2 cell = ivec2(floor(gl_FragCoord.xy));
+    vec4 sA = texelFetch(uStateA, cell, 0);
+    vec4 sB = texelFetch(uStateB, cell, 0);
+
+    float life = sB.r;
+    if (life <= 0.001) {
+      outA = vec4(0.0);
+      outB = vec4(0.0);
+      return;
+    }
+
+    vec2 pos = sA.rg;
+    float angle = sA.b;
+    float phase = sA.a;
+    float size = sB.g;
+    float prevCruise = sB.b;
+    float prevBond = sB.a;
+    float mySupport = clamp(0.65 * prevBond + 0.55 * prevCruise, 0.0, 1.0);
+    float myInertia = 0.08 + 0.92 * mySupport;
+
+    vec2 dir = vec2(cos(angle), sin(angle));
+    float flap = sin(phase); // +1 = ^ (forward), 0 = —, -1 = v (backward)
+    float omega = TAU * uFreq;
+
+    // Single immediate-leader tracking (wake shadowing prevents 2nd-neighbor leapfrog merges)
+    float bestLeadScore = 0.0;
+    float bestLeadW = 0.0;
+    float bestLeadDist = 99.0;
+    float bestLeadCruise = 0.0;
+    float bestLeadSize = 1.0;
+    vec2 bestLeadPull = vec2(0.0);
+    float bestLeadGap = 0.0;
+    float bestLeadLat = 0.0;
+    float bestLeadKappa = 0.0;
+    vec2 bestLeadDir = vec2(0.0);
+    vec2 bestLeadChord = vec2(0.0);
+
+    float rearWeightSum = 0.0;
+    vec2 rearDirSum = vec2(0.0);
+    float rearLatSum = 0.0;
+
+    // Two-way Kuramoto phase-sync accumulators (both leader ahead & follower behind)
+    float kuraSinSum = 0.0;
+    float kuraWeightSum = 0.0;
+
+    float interferePhase = 0.0;
+    vec2 interferePush = vec2(0.0);
+
+    vec2 bowPushSum = vec2(0.0);
+    vec2 bowDeflectVec = vec2(0.0);
+    float bowDeflectWeight = 0.0;
+    float headwindBrake = 0.0;
+    float incomingShock = 0.0;
+
+    // Inspect 5x5 neighborhood
+    for (int dy = -2; dy <= 2; dy++) {
+      for (int dx = -2; dx <= 2; dx++) {
+        if (dx == 0 && dy == 0) continue;
+        ivec2 nCell = wrapCell(cell + ivec2(dx, dy));
+        vec4 nB = texelFetch(uStateB, nCell, 0);
+        if (nB.r <= 0.001) continue;
+
+        vec4 nA = texelFetch(uStateA, nCell, 0);
+        vec2 nPos = vec2(float(dx), float(dy)) + nA.rg;
+        vec2 toN = nPos - pos; // vector from self to neighbor
+        float dist = length(toN);
+        if (dist < 0.05 || dist > uReach * 1.45) continue;
+
+        float nAngle = nA.b;
+        float nPhase = nA.a;
+        float nSize = nB.g;
+        float nCruise = nB.b;
+        float nBond = nB.a;
+        float nSupport = clamp(0.65 * nBond + 0.55 * nCruise, 0.0, 1.0);
+        float nInertia = 0.08 + 0.92 * nSupport;
+        float impactRatio = clamp(nInertia / myInertia, 0.05, 3.0);
+        vec2 nDir = vec2(cos(nAngle), sin(nAngle));
+
+        // Exact symmetry between (theta, phi) and (theta + pi, phi + pi):
+        // Check which sign aligns with our current axis.
+        float alignRaw = dot(dir, nDir);
+        float signFlip = alignRaw >= 0.0 ? 1.0 : -1.0;
+        vec2 nDirAligned = nDir * signFlip;
+        float nPhaseAligned = signFlip > 0.0 ? nPhase : mod(nPhase + PI, TAU);
+
+        float headingAlign = dot(dir, nDirAligned); // in [0, 1]
+        float phaseSync = cos(nPhaseAligned - phase); // in [-1, 1]
+        float syncGate = smoothstep(0.15, 0.80, phaseSync);
+        float dirGate = smoothstep(0.45, 0.90, headingAlign);
+
+        // 1) Is neighbor N a LEADER ahead of us (are we inside N's draft cone)?
+        float coneFromN = draftConeWeight(-toN, nDirAligned, nSize, uReach, uConeTan);
+        float inFront = smoothstep(0.15, 0.65, dot(toN / dist, dir));
+
+        if (coneFromN > 0.001 && inFront > 0.001) {
+          // Prefer established cruising/backed leaders over fleeting solitary oscillators
+          float leaderPriority = mix(0.35, 0.04, mySupport) + 0.96 * nSupport;
+
+          // Two-way Kuramoto capture basin: pull aligned leader/follower pairs into phase harmony
+          // even before they are fully locked (up to ~105 deg mismatch, excluding anti-phase)
+          float kuraLead = coneFromN * inFront * dirGate * smoothstep(-0.25, 0.20, phaseSync) * leaderPriority;
+          if (kuraLead > 0.001) {
+            kuraSinSum += kuraLead * sin(nPhaseAligned - phase);
+            kuraWeightSum += kuraLead;
+          }
+
+          float w = coneFromN * inFront * dirGate * syncGate * leaderPriority;
+          if (w > 0.001) {
+            float leadScore = w / max(dist * dist, 0.25);
+            if (leadScore > bestLeadScore) {
+              bestLeadScore = leadScore;
+              bestLeadW = w;
+              bestLeadDist = dist;
+              bestLeadCruise = nCruise;
+              bestLeadSize = nSize;
+
+              // Soft double-lobe wing pockets [L] . [R] + radial chord spacing (~1.12 cells)
+              vec2 nPerp = vec2(-nDirAligned.y, nDirAligned.x);
+              float relLat = dot(-toN, nPerp); // >0 = left wing pocket [L], <0 = right wing pocket [R]
+              float sideBias = clamp(relLat / 0.14, -1.0, 1.0); // 100% left-right symmetric smooth saddle
+              float pocketOffset = 0.34 * nSize * min(uOffCenter, 1.0) * sideBias;
+              float latErr = pocketOffset - relLat;
+              vec2 lateralPocketNudge = nPerp * (latErr * 0.45 * min(uOffCenter, 1.2));
+
+              vec2 chordDir = toN / dist;
+              float gap = dist - 1.12 * nSize;
+              // Stronger longitudinal push-back when closer than 1.12 cells so followers never rear-end into the leader's cell
+              float gapMult = gap < 0.0 ? 3.2 : 1.0;
+              vec2 toSweet = chordDir * (gap * gapMult);
+
+              bestLeadPull = toSweet + lateralPocketNudge;
+              bestLeadGap = max(gap, 0.0);
+              bestLeadLat = relLat;
+              bestLeadDir = nDirAligned;
+              bestLeadChord = chordDir;
+
+              // Exact pure-pursuit curvature kappa = 2 * sin(alpha) / dist
+              float sinAlpha = dir.x * chordDir.y - dir.y * chordDir.x;
+              bestLeadKappa = clamp(2.0 * sinAlpha / max(dist, 0.5), -1.8, 1.8);
+            }
+          } else if (phaseSync < -0.15 || dirGate < 0.15) {
+            // Truly anti-phase or misaligned neighbor in cone -> mild interference (resisted by formation backup)
+            float bad = coneFromN * (1.0 - syncGate * dirGate) * (1.0 - 0.85 * mySupport);
+            interferePush -= (toN / dist) * bad * 0.25;
+            interferePhase += bad * sin(nPhaseAligned - phase) * 0.35;
+          }
+        }
+
+        // 2) Is neighbor N a FOLLOWER behind us (sitting in OUR draft cone)?
+        // Two-way coupling: follower behind braces our push-off AND pulls us into Kuramoto harmony!
+        float coneFromSelf = draftConeWeight(toN, dir, size, uReach, uConeTan);
+        float isBehind = smoothstep(0.15, 0.65, dot(-toN / dist, dir));
+        if (coneFromSelf > 0.001 && isBehind > 0.001) {
+          float rearPriority = mix(0.65, 0.35, mySupport) + 0.65 * nSupport;
+          float kuraRear = coneFromSelf * isBehind * dirGate * smoothstep(-0.25, 0.20, phaseSync) * rearPriority;
+          if (kuraRear > 0.001) {
+            kuraSinSum += kuraRear * sin(nPhaseAligned - phase);
+            kuraWeightSum += kuraRear;
+          }
+
+          float wRear = coneFromSelf * isBehind * dirGate * syncGate;
+          if (wRear > 0.001) {
+            rearWeightSum += wRear;
+            rearDirSum += wRear * nDirAligned;
+            vec2 myPerp = vec2(-dir.y, dir.x);
+            float rearLat = dot(toN, myPerp); // >0 = follower on left-rear, <0 = follower on right-rear
+            rearLatSum += wRear * rearLat;
+          }
+        }
+
+        // 3) Frontal & outward bow-wave compression from neighbor N (inverse to draft cone)
+        float nRect = smoothstep(0.05, 0.45, nCruise);
+        float nFlap = sin(nPhase);
+        vec2 nBowDir = (nRect > 0.35) ? nDir : (nFlap >= 0.0 ? nDir : -nDir);
+        // Trains/cruising birds pack a much stronger frontal bow wave than solitary oscillators
+        float nFormationPower = 0.55 + 0.65 * nCruise + 0.35 * nBond;
+        float nBowPower = (nRect > 0.35)
+          ? nFormationPower * (0.80 + 0.40 * max(nFlap, 0.0))
+          : abs(nFlap) * 0.45;
+
+        float bowFromN = bowCompressionWeight(-toN, nBowDir, nSize, uReach, uConeTan) * nBowPower;
+        if (bowFromN > 0.001 && uBowPressure > 0.0) {
+          vec2 away = -toN / dist;
+          float approach = clamp(-dot(dir, nBowDir), 0.0, 1.0);
+          float sameSync = smoothstep(0.35, 0.85, dot(dir, nBowDir)) * smoothstep(0.15, 0.80, cos(nPhase - phase));
+          float nonSynced = 1.0 - sameSync;
+
+          // Outward push: gentle spacing cushion for synced leader-follower,
+          // strong outward repulsion weighted by relative formation inertia when non-synced.
+          float soloShield = 1.0 - 0.85 * mySupport * (1.0 - nSupport);
+          float pushMult = mix(0.28, 1.85 * impactRatio * soloShield, max(approach, nonSynced));
+          bowPushSum += away * (bowFromN * uBowPressure * pushMult);
+
+          // Deflect heading away from oncoming bow wave (weighted by relative inertia)
+          if (nonSynced > 0.1) {
+            float dw = bowFromN * nonSynced * (0.5 + 0.8 * approach) * impactRatio * soloShield;
+            bowDeflectVec += away * dw;
+            bowDeflectWeight += dw;
+            // Frontal shock that puffs unbacked solitary birds to pieces
+            incomingShock += bowFromN * nonSynced * (0.45 + 0.90 * approach) * (0.4 + 0.9 * nSupport) * impactRatio;
+          }
+
+          // Head-on bow pressure brakes forward cruise (weighted by relative inertia)
+          headwindBrake += bowFromN * approach * uBowPressure * impactRatio * soloShield;
+        }
+
+        // 4) Wing-tip vortex (seals the lateral gap between frontal bow and trailing draft cone)
+        if (uVortex > 0.0) {
+          vec3 vort = wingTipVortexField(-toN, nBowDir, nSize);
+          float vortStrength = vort.z * nBowPower;
+          if (vortStrength > 0.001) {
+            float sameSyncV = smoothstep(0.35, 0.85, dot(dir, nBowDir)) * smoothstep(0.15, 0.80, cos(nPhase - phase));
+            float nonSyncedV = 1.0 - sameSyncV;
+            if (nonSyncedV > 0.1) {
+              float soloShieldV = 1.0 - 0.85 * mySupport * (1.0 - nSupport);
+              // Sweep flank intruders outward & backward so they cannot cut into the train
+              bowPushSum += vort.xy * (vortStrength * uVortex * 1.45 * nonSyncedV * impactRatio * soloShieldV);
+              float dvw = vortStrength * nonSyncedV * impactRatio * soloShieldV;
+              bowDeflectVec += vort.xy * dvw;
+              bowDeflectWeight += dvw;
+              // Vortex shear damages unbacked solitary intruders trying to cross the wing-tips
+              incomingShock += vortStrength * nonSyncedV * (0.55 + 0.85 * nSupport) * impactRatio * (uVortex / 2.4);
+            }
+          }
+        }
+
+        // Soft short-range steric repulsion so birds don't collapse into the same grid cell
+        // (weighted by relative inertia so stray solo birds don't knock backed formations off-track)
+        if (dist < 0.90) {
+          float rep = (0.90 - dist) / 0.90;
+          interferePush -= (toN / dist) * rep * 2.4 * min(impactRatio, 1.5);
+        }
+      }
+    }
+
+    float leadWeightSum = bestLeadW;
+
+    // --- Real Adaptive Medium Sensing (ffGXRW-style carved dips, bow peaks & two-wing refraction) ---
+    float mediumDraft = 0.0;
+    float mediumGradTurn = 0.0;
+    float glideBoost = 0.0;
+    if (uMediumCarve > 0.001) {
+      vec4 medAhead = sampleMedium(vec2(cell) + 0.5 + pos + dir * (0.90 * size));
+      float coldAhead = 1.0 - medAhead.r; // >0 = carved low-density dip; <0 = compressed peak
+      float medPhMag = length(medAhead.ba);
+
+      if (coldAhead > 0.025) {
+        float dipStrength = smoothstep(0.02, 0.28, coldAhead);
+        float medSync = 0.45;
+        if (medPhMag > 0.05) {
+          float medPhase = atan(medAhead.a, medAhead.b);
+          float mPhaseSync = cos(medPhase - phase);
+          float km = dipStrength * medPhMag * smoothstep(-0.30, 0.20, mPhaseSync) * 0.80;
+          if (km > 0.001) {
+            kuraSinSum += km * sin(medPhase - phase);
+            kuraWeightSum += km;
+          }
+          medSync = smoothstep(0.0, 0.72, mPhaseSync);
+        }
+        mediumDraft = clamp(dipStrength * 1.15 * medSync, 0.0, 0.90);
+        glideBoost = 0.18 * clamp(coldAhead * 2.5, 0.0, 1.0);
+      } else if (coldAhead < -0.02) {
+        headwindBrake += clamp((-coldAhead - 0.02) * 3.0, 0.0, 1.2) * (1.0 - 0.65 * mySupport);
+      }
+
+      if (uMediumRefract > 0.001) {
+        vec2 wPerp = vec2(-dir.y, dir.x); // LEFT of dir
+        vec2 fwdCenter = vec2(cell) + 0.5 + pos + dir * (1.85 * size);
+        float coldL = 1.0 - sampleMedium(fwdCenter + wPerp * (1.35 * size)).r;
+        float coldR = 1.0 - sampleMedium(fwdCenter - wPerp * (1.35 * size)).r;
+        // Steer toward carved low-density dips (cold > 0) and away from compressed peaks/shoulders (cold < 0)!
+        mediumGradTurn = clamp((coldL - coldR) * 2.2, -1.0, 1.0);
+      }
+    }
+
+    float lead = clamp(max(leadWeightSum * 2.2, mediumDraft), 0.0, 1.0);
+    float rear = clamp(rearWeightSum * 1.6, 0.0, 1.0);
+
+    // Smooth forward draft bond (sustains lifespan)
+    float smoothBond = mix(prevBond, lead, clamp(uDt * 6.0, 0.0, 1.0));
+
+    // Target unidirectional cruise momentum:
+    //   Isolated (lead=0, rear=0) -> 0.0 (pure symmetric oscillation)
+    //   Front leader (lead=0, rear=1) -> pushed forward briskly, decays slowly while backed
+    //   Back bird (lead=1, rear=0) -> slightly slower without rear brace
+    //   Middle / Closed loop (lead=1, rear=1) -> 1.0 (full steady unidirectional cruise)
+    float rawTargetCruise = clamp(
+      lead * (1.0 - 0.22 * uBrace) + rear * (0.68 + 0.22 * uBrace) - 0.35 * headwindBrake,
+      0.0,
+      1.0
+    );
+
+    // Peloton speed matching: when tucked close behind a slower leader, match its cruise
+    // instead of rear-ending into the same integer grid cell.
+    if (bestLeadW > 0.001 && bestLeadCruise > 0.15) {
+      float closeFollow = 1.0 - smoothstep(1.02 * bestLeadSize, 1.45 * bestLeadSize, bestLeadDist);
+      float pelotonCap = min(1.0, bestLeadCruise + 0.04 + 0.24 * (1.0 - closeFollow));
+      rawTargetCruise = min(rawTargetCruise, pelotonCap);
+    }
+
+    float targetCruise = rawTargetCruise;
+    float cruiseRate = targetCruise > prevCruise ? 6.5 : 3.2;
+    float cruise = mix(prevCruise, targetCruise, clamp(uDt * cruiseRate, 0.0, 1.0));
+
+    // --- Steering (two-way!) ---
+    // Exact pure-pursuit curvature steering: omega = kappa * v_forward.
+    // Holds any closed-loop radius stably at any cruise speed (uSteer = 4.5 -> exact 1.0x).
+    float estForwardSpeed = max(cruise * uCruiseSpeed * size * 0.94, 0.75);
+    if (bestLeadW > 0.001) {
+      float avgKappa = bestLeadKappa;
+      float avgRelLat = bestLeadLat;
+      // Differential wing drag: outboard wing sticks into dense air while inboard wing rides draft
+      // -> turns toward outboard side (same sign as relLat: <0 CW, >0 CCW).
+      float wingKappa = clamp(avgRelLat / 1.1, -0.45, 0.45) * 0.65 * uOffCenter;
+      float sameSign = step(0.0, avgKappa * wingKappa);
+      float extraKappa = (sameSign > 0.5 && abs(avgKappa) > abs(wingKappa))
+        ? 0.0
+        : (wingKappa - sameSign * avgKappa) * 0.65;
+      float effKappa = avgKappa + extraKappa;
+      float lockGain = smoothstep(0.03, 0.25, bestLeadW);
+      angle += effKappa * estForwardSpeed * (uSteer / 4.5) * lockGain * uDt;
+    }
+
+    // Two-way Kuramoto phase harmony: both leaders and followers mutually pull into sync
+    if (kuraWeightSum > 0.001) {
+      float kuraGain = clamp(kuraWeightSum * 2.2, 0.0, 1.0);
+      phase += (kuraSinSum / kuraWeightSum) * uSync * kuraGain * uDt;
+    }
+
+    // Two-wing Adaptive Medium density-gradient refraction (toward carved dips, away from peaks/shoulders)
+    if (abs(mediumGradTurn) > 0.001) {
+      float freeLeadMask = mix(1.0, 0.25, smoothstep(0.05, 0.35, bestLeadW));
+      angle += mediumGradTurn * uMediumRefract * freeLeadMask * uDt;
+    }
+
+    // Return stroke: when no leader ahead (front of open chain), follower's orientation
+    // and lateral offset behind us steer our push-off smoothly.
+    if (rearWeightSum > 0.001 && leadWeightSum < 0.05) {
+      vec2 rearDir = normalize(rearDirSum);
+      float turnRear = atan(dir.x * rearDir.y - dir.y * rearDir.x, dot(dir, rearDir));
+      float rearPhaseW = mix(0.35, 1.0, max(-flap, 0.0));
+      float rearLock = clamp(rearWeightSum, 0.0, 1.0);
+      angle += turnRear * (uSteer * 0.30 * uBrace) * rearPhaseW * rearLock * uDt;
+
+      float avgRearLat = rearLatSum / rearWeightSum;
+      float frontKappa = clamp(avgRearLat / 1.1, -0.45, 0.45) * 0.55 * uOffCenter;
+      angle += frontKappa * estForwardSpeed * rearLock * uDt;
+    }
+
+    // Frontal bow-wave deflection: veer away from oncoming compression
+    if (bowDeflectWeight > 0.001) {
+      vec2 awayDir = normalize(bowDeflectVec);
+      float turnAway = atan(dir.x * awayDir.y - dir.y * awayDir.x, dot(dir, awayDir));
+      angle += turnAway * clamp(bowDeflectWeight * uBowPressure * 1.4, 0.0, 6.0) * uDt;
+    }
+
+    dir = vec2(cos(angle), sin(angle));
+
+    // --- Unidirectional Cruise vs. Symmetric Isolated Flapping ---
+    // Isolated (cruise = 0): pure symmetric back-and-forth oscillation (zero net drift).
+    // Aligned & in sync (cruise > 0): breaks symmetry into strictly forward cruise flight
+    // with a rhythmic forward power-stroke pulse (never reverses backward).
+    float rect = smoothstep(0.05, 0.45, cruise);
+    float isoSpeed = (1.0 - rect) * uAmp * size * flap;
+    float flySpeed = cruise * uCruiseSpeed * size * (0.85 + 0.30 * max(flap, 0.0) + glideBoost);
+
+    vec2 vel = dir * (isoSpeed + flySpeed);
+
+    // Race-drafting slipstream suction + close-range bumper brake
+    if (bestLeadW > 0.001) {
+      float wLead = clamp(bestLeadW * 1.4, 0.0, 1.0);
+      vel += bestLeadPull * (uDraftSuction * wLead);
+      vel += dir * (0.45 * uDraftSuction * bestLeadGap * wLead);
+
+      // Firm longitudinal bumper brake if closing inside 1.02 cells of immediate leader
+      if (bestLeadDist < 1.02 * bestLeadSize) {
+        float closing = max(dot(vel, bestLeadChord), 0.0);
+        float brakeFrac = smoothstep(1.02 * bestLeadSize, 0.86 * bestLeadSize, bestLeadDist);
+        vel -= bestLeadChord * (closing * 0.85 * brakeFrac);
+      }
+    }
+
+    vel += interferePush + bowPushSum;
+
+    // Clamp max displacement per step to < 0.45 cells for clean 3x3 cell transfer
+    vec2 stepMove = vel * uDt;
+    float moveLen = length(stepMove);
+    if (moveLen > 0.42) {
+      stepMove *= 0.42 / moveLen;
+    }
+
+    pos += stepMove;
+    phase = mod(phase + (omega + interferePhase) * uDt, TAU);
+    angle = mod(angle + TAU, TAU);
+
+    // --- Lifespan & Structural Backup ("3 Little Piggies") ---
+    // Isolated or un-drafted front leader decays in uLifespan seconds.
+    // Sustained ONLY when drafting behind a synchronized leader ahead!
+    // Back-compression / formation backup protects trains & loops from frontal bow shock,
+    // while unbacked solitary birds get puffed to pieces by an oncoming train's bow wave.
+    float backup = clamp(0.65 * smoothBond + 0.85 * rear + 0.45 * cruise, 0.0, 1.0);
+    float shockDamage = uDt * uBowKill * incomingShock * (1.0 - 0.88 * backup);
+    float decay = uDt / max(uLifespan, 0.1);
+    float leadSustain = uDt * (2.4 / max(uLifespan, 0.1)) * smoothstep(0.18, 0.55, smoothBond);
+    float rearSustain = uDt * (uRearSustain / max(uLifespan, 0.1)) * smoothstep(0.18, 0.55, rear);
+    life = clamp(life - decay - shockDamage + leadSustain + rearSustain, 0.0, 1.0);
+
+    outA = vec4(pos, angle, phase);
+    outB = vec4(life, size, cruise, smoothBond);
+  }
+  `;
+
+  // --- PASS 2: Cell Transfer (3x3 gather) + Spontaneous Nucleation + Mouse Paint ---
+  const ADVECT_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uStateA;
+  uniform sampler2D uStateB;
+  uniform float uDt;
+  uniform float uSpawnRate;
+  uniform float uFrame;
+  uniform float uTime;
+  uniform vec4 uMouse;      // xy = world cell pos, z = down (0/1), w = stroke angle
+  uniform vec2 uPrevMouse;  // previous world cell pos
+
+  layout(location = 0) out vec4 outA;
+  layout(location = 1) out vec4 outB;
+
+  ${COMMON_GLSL}
+
+  float distToSeg(vec2 p, vec2 a, vec2 b) {
+    vec2 ab = b - a;
+    float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-5), 0.0, 1.0);
+    return length(p - (a + ab * t));
+  }
+
+  void main() {
+    ivec2 cell = ivec2(floor(gl_FragCoord.xy));
+
+    vec4 bestA = vec4(0.0);
+    vec4 bestB = vec4(0.0);
+    float bestScore = -1.0;
+    bool nearbyOccupied = false;
+
+    // Gather any vibration whose updated sub-cell pos landed inside this cell
+    for (int dy = -1; dy <= 1; dy++) {
+      for (int dx = -1; dx <= 1; dx++) {
+        ivec2 srcCell = wrapCell(cell + ivec2(dx, dy));
+        vec4 sB = texelFetch(uStateB, srcCell, 0);
+        if (sB.r <= 0.001) continue;
+
+        vec4 sA = texelFetch(uStateA, srcCell, 0);
+        // Position of source particle relative to THIS cell's center
+        vec2 relPos = vec2(float(dx), float(dy)) + sA.rg;
+
+        // Block spontaneous spawning on top of or immediately adjacent to an existing vibration
+        float clearRadius = sB.b > 0.25 ? 1.40 : 1.25;
+        if (length(relPos) < clearRadius) {
+          nearbyOccupied = true;
+        }
+
+        if (relPos.x >= -0.5 && relPos.x < 0.5 && relPos.y >= -0.5 && relPos.y < 0.5) {
+          // Competition rule if two land in same cell: higher life + bond wins
+          float score = sB.r + 0.6 * sB.b - 0.1 * length(relPos);
+          if (score > bestScore) {
+            bestScore = score;
+            bestA = vec4(relPos, sA.b, sA.a);
+            bestB = sB;
+          }
+        }
+      }
+    }
+
+    // Mouse painting: drop aligned, synchronized birds along drag stroke
+    if (uMouse.z > 0.5) {
+      vec2 cellCenter = vec2(cell) + 0.5;
+      float d = distToSeg(cellCenter, uPrevMouse, uMouse.xy);
+      if (d < 0.72 && bestB.r <= 0.05) {
+        bestA = vec4(0.0, 0.0, uMouse.w, mod(uTime * TAU * 2.5, TAU));
+        bestB = vec4(1.0, 1.0, 0.0, 0.0);
+      }
+    }
+
+    // Spontaneous nucleation in empty, uncrowded cells only
+    if (!nearbyOccupied && bestB.r <= 0.001 && uSpawnRate > 0.0) {
+      uint seed = uint(uFrame) * 1664525u + 1013904223u;
+      float r = rand01(cell, seed);
+      if (r < uSpawnRate * uDt) {
+        float ox = (rand01(cell, seed + 1u) - 0.5) * 0.7;
+        float oy = (rand01(cell, seed + 2u) - 0.5) * 0.7;
+        float ang = rand01(cell, seed + 3u) * TAU;
+        float ph = rand01(cell, seed + 4u) * TAU;
+        float sz = mix(0.75, 1.25, rand01(cell, seed + 5u));
+        bestA = vec4(ox, oy, ang, ph);
+        bestB = vec4(1.0, sz, 0.0, 0.0);
+      }
+    }
+
+    outA = bestA;
+    outB = bestB;
+  }
+  `;
+
+  // --- DISPLAY SHADER ---
+  const DISPLAY_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uStateA;
+  uniform sampler2D uStateB;
+  uniform sampler2D uMedium;
+  uniform vec2 uRes;
+  uniform float uZoom;
+  uniform vec2 uZoomCenter;
+  uniform float uConeTan;
+  uniform float uReach;
+  uniform float uShowMedium;
+  uniform float uShowCones;
+  uniform float uShowGrid;
+  uniform float uOffCenter;
+
+  in vec2 vUV;
+  out vec4 fragColor;
+
+  ${COMMON_GLSL}
+
+  float sdSeg(vec2 p, vec2 a, vec2 b) {
+    vec2 pa = p - a, ba = b - a;
+    float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
+    return length(pa - ba * h);
+  }
+
+  void main() {
+    // Aspect-preserving world mapping
+    float aspect = uRes.x / max(uRes.y, 1.0);
+    float gridAspect = float(GRID.x) / float(GRID.y);
+
+    vec2 viewSize = vec2(float(GRID.x), float(GRID.y)) / uZoom;
+    if (aspect > gridAspect) {
+      viewSize.x = viewSize.y * aspect;
+    } else {
+      viewSize.y = viewSize.x / aspect;
+    }
+
+    vec2 worldPos = uZoomCenter + (vUV - 0.5) * viewSize;
+    float pxSize = viewSize.y / max(uRes.y, 1.0);
+
+    // Background
+    vec3 col = vec3(0.045, 0.055, 0.072);
+
+    // Subtle out-of-bounds dim if aspect doesn't match at zoom=1
+    if (uZoom <= 1.05 && (worldPos.x < 0.0 || worldPos.x > float(GRID.x) || worldPos.y < 0.0 || worldPos.y > float(GRID.y))) {
+      fragColor = vec4(0.02, 0.025, 0.035, 1.0);
+      return;
+    }
+
+    ivec2 baseCell = ivec2(floor(worldPos));
+
+    // Adaptive Medium Heatmap (ffGXRW-style):
+    //   coldness > 0 (content < 1) -> carved low-density dip (teal -> cyan -> blue)
+    //   coldness < 0 (content > 1) -> compressed bow peak & shoulders (amber -> orange -> gold)
+    if (uShowMedium > 0.5) {
+      vec2 mTex = worldPos - 0.5;
+      ivec2 mb = ivec2(floor(mTex));
+      vec2 mf = fract(mTex);
+      vec4 m00 = texelFetch(uMedium, wrapCell(mb), 0);
+      vec4 m10 = texelFetch(uMedium, wrapCell(mb + ivec2(1, 0)), 0);
+      vec4 m01 = texelFetch(uMedium, wrapCell(mb + ivec2(0, 1)), 0);
+      vec4 m11 = texelFetch(uMedium, wrapCell(mb + ivec2(1, 1)), 0);
+      vec4 med = mix(mix(m00, m10, mf.x), mix(m01, m11, mf.x), mf.y);
+
+      float coldness = 1.0 - med.r;
+      if (coldness > 0.008) {
+        float dipT = smoothstep(0.01, 0.35, coldness);
+        vec3 dipCol = mix(vec3(0.04, 0.28, 0.42), vec3(0.04, 0.68, 0.94), smoothstep(0.0, 0.5, dipT));
+        dipCol = mix(dipCol, vec3(0.08, 0.36, 1.00), smoothstep(0.5, 1.0, dipT));
+        col = mix(col, dipCol, clamp(dipT * 0.78, 0.0, 0.85));
+      } else if (coldness < -0.008) {
+        float peakT = smoothstep(0.01, 0.30, -coldness);
+        vec3 peakCol = mix(vec3(0.52, 0.20, 0.04), vec3(0.96, 0.50, 0.10), smoothstep(0.0, 0.55, peakT));
+        peakCol = mix(peakCol, vec3(1.00, 0.78, 0.22), smoothstep(0.55, 1.0, peakT));
+        col = mix(col, peakCol, clamp(peakT * 0.72, 0.0, 0.80));
+      }
+    }
+
+    // Faint cell grid when zoomed in
+    if (uShowGrid > 0.5 && uZoom > 1.8) {
+      vec2 f = fract(worldPos);
+      vec2 edge = min(f, 1.0 - f);
+      float gDist = min(edge.x, edge.y);
+      float gridAlpha = (1.0 - smoothstep(0.0, pxSize * 1.4, gDist)) * smoothstep(1.8, 3.5, uZoom) * 0.22;
+      col = mix(col, vec3(0.32, 0.39, 0.48), gridAlpha);
+    }
+
+    // Accumulate draft cones, frontal bow waves, wing-tip vortices & vibrations
+    float coneAccum = 0.0;
+    float coneBondAccum = 0.0;
+    float bowAccum = 0.0;
+    float vortAccum = 0.0;
+    vec3 birdCol = vec3(0.0);
+    float birdAlpha = 0.0;
+
+    int rad = (uShowCones > 0.5 && uZoom > 1.3) ? 2 : 1;
+
+    for (int dy = -2; dy <= 2; dy++) {
+      if (abs(dy) > rad) continue;
+      for (int dx = -2; dx <= 2; dx++) {
+        if (abs(dx) > rad) continue;
+        ivec2 c = baseCell + ivec2(dx, dy);
+        ivec2 wc = wrapCell(c);
+        vec4 sB = texelFetch(uStateB, wc, 0);
+        if (sB.r <= 0.001) continue;
+
+        vec4 sA = texelFetch(uStateA, wc, 0);
+        vec2 center = vec2(c) + 0.5 + sA.rg;
+        vec2 rel = worldPos - center;
+
+        float angle = sA.b;
+        float phase = sA.a;
+        float life = sB.r;
+        float size = sB.g;
+        float cruise = sB.b;
+        float bond = sB.a;
+
+        vec2 dir = vec2(cos(angle), sin(angle));
+        vec2 perp = vec2(-dir.y, dir.x);
+        float flap = sin(phase);
+        float rect = smoothstep(0.05, 0.45, cruise);
+
+        // Draft cone behind & bow compression wave ahead of active stroke
+        if (uShowCones > 0.5 && uZoom > 1.3) {
+          // When cruising (rect high), draft stays behind forward dir and bow stays ahead;
+          // when isolated, both flip symmetrically with sign(flap).
+          vec2 coneDir = (rect > 0.35) ? dir : (flap >= 0.0 ? dir : -dir);
+          float strength = (rect > 0.35) ? mix(0.45, 1.0, max(flap, 0.0)) : abs(flap);
+          float w = draftConeWeight(rel, coneDir, size, uReach, uConeTan) * strength * life;
+          if (uOffCenter > 0.02) {
+            float relLatVis = abs(rel.x * (-coneDir.y) + rel.y * coneDir.x);
+            float centerDip = 1.0 - 0.45 * min(uOffCenter, 1.0) * exp(-pow(relLatVis / (0.24 * size), 2.0));
+            w *= centerDip;
+          }
+          coneAccum += w;
+          coneBondAccum += w * max(bond, cruise);
+
+          float bowPower = (rect > 0.35)
+            ? (0.40 + 0.60 * cruise) * mix(0.55, 1.0, max(flap, 0.0))
+            : abs(flap) * 0.65;
+          bowAccum += bowCompressionWeight(rel, coneDir, size, uReach, uConeTan) * bowPower * life;
+          vortAccum += wingTipVortexField(rel, coneDir, size).z * bowPower * life;
+        }
+
+        // Draw vibration: chevron (v — ^) when zoomed, crisp dot/chevron when zoomed out
+        if (abs(dx) <= 1 && abs(dy) <= 1) {
+          vec3 cIsolated = vec3(0.95, 0.47, 0.18);
+          vec3 cDrafting = vec3(0.22, 0.85, 0.78);
+          vec3 cLocked   = vec3(1.00, 0.88, 0.38);
+          float lockViz = max(bond, cruise * 0.75);
+          vec3 baseCol = mix(cIsolated, cDrafting, smoothstep(0.12, 0.55, lockViz));
+          baseCol = mix(baseCol, cLocked, smoothstep(0.55, 0.90, lockViz));
+
+          float mask = 0.0;
+          if (uZoom > 1.6) {
+            // Isolated: symmetric v — ^ flap.
+            // Cruising: stays pointed forward ^ while pulsing its wings!
+            float wingSpan = 0.34 * size;
+            float sweep = size * mix(0.28 * flap, 0.22 + 0.12 * flap, rect);
+            vec2 tip = dir * (0.5 * sweep);
+            vec2 leftWing = -dir * (0.5 * sweep) + perp * wingSpan;
+            vec2 rightWing = -dir * (0.5 * sweep) - perp * wingSpan;
+
+            float d1 = sdSeg(rel, tip, leftWing);
+            float d2 = sdSeg(rel, tip, rightWing);
+            float d = min(d1, d2);
+            float strokeW = max(0.055 * size, pxSize * 1.15);
+            mask = 1.0 - smoothstep(strokeW, strokeW + pxSize * 1.2, d);
+          } else {
+            // Compact dot/tick at full 10k-cell scale
+            float d = length(rel);
+            float r = max(0.30 * size, pxSize * 1.1);
+            mask = 1.0 - smoothstep(r * 0.5, r + pxSize * 0.8, d);
+          }
+
+          float a = mask * clamp(life * 1.25, 0.0, 1.0);
+          if (a > birdAlpha) {
+            birdAlpha = a;
+            birdCol = baseCol;
+          }
+        }
+      }
+    }
+
+    // Composite draft cones (cool suction) & frontal bow waves (warm compression)
+    if (coneAccum > 0.001) {
+      float bondFrac = clamp(coneBondAccum / max(coneAccum, 1e-4), 0.0, 1.0);
+      vec3 coneCol = mix(vec3(0.55, 0.62, 0.72), vec3(0.25, 0.82, 0.78), bondFrac);
+      col = mix(col, coneCol, clamp(coneAccum * 0.35, 0.0, 0.55));
+    }
+    if (bowAccum > 0.001) {
+      vec3 bowCol = vec3(0.95, 0.44, 0.22);
+      col = mix(col, bowCol, clamp(bowAccum * 0.24, 0.0, 0.42));
+    }
+    if (vortAccum > 0.001) {
+      vec3 vortCol = vec3(0.68, 0.48, 0.96);
+      col = mix(col, vortCol, clamp(vortAccum * 0.28, 0.0, 0.42));
+    }
+
+    // Composite birds
+    col = mix(col, birdCol, birdAlpha);
+
+    fragColor = vec4(col, 1.0);
+  }
+  `;
+
+  const progMedium = createProgram(MEDIUM_FS);
+  const progUpdate = createProgram(UPDATE_FS);
+  const progAdvect = createProgram(ADVECT_FS);
+  const progDisplay = createProgram(DISPLAY_FS);
+
+  // Double-buffered state textures + Adaptive Medium scalar wave textures
+  const texA = [createFloatTex(NX, NY), createFloatTex(NX, NY)];
+  const texB = [createFloatTex(NX, NY), createFloatTex(NX, NY)];
+  const fbo = [createFBO(texA[0], texB[0]), createFBO(texA[1], texB[1])];
+  const mediumTex = [createFloatTex(NX, NY), createFloatTex(NX, NY)];
+  const mediumFbo = [createSingleFBO(mediumTex[0]), createSingleFBO(mediumTex[1])];
+  let cur = 0;
+  let mediumCur = 0;
+
+  function uploadState(dataA, dataB) {
+    // Baseline Medium MUST initialize with content = 1.0, rate = 0.0, phase = (0.0, 0.0)
+    const flatMedium = new Float32Array(NX * NY * 4);
+    for (let i = 0; i < NX * NY; i++) {
+      flatMedium[i * 4] = 1.0;
+    }
+    for (let i = 0; i < 2; i++) {
+      gl.bindTexture(gl.TEXTURE_2D, texA[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, NX, NY, gl.RGBA, gl.FLOAT, dataA);
+      gl.bindTexture(gl.TEXTURE_2D, texB[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, NX, NY, gl.RGBA, gl.FLOAT, dataB);
+      gl.bindTexture(gl.TEXTURE_2D, mediumTex[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, NX, NY, gl.RGBA, gl.FLOAT, flatMedium);
+    }
+    cur = 0;
+    mediumCur = 0;
+  }
+
+  function makeEmptyBuffers() {
+    return [new Float32Array(NX * NY * 4), new Float32Array(NX * NY * 4)];
+  }
+
+  function placeBird(dataA, dataB, x, y, angle, phase = 0, size = 1.0, life = 1.0) {
+    const cx = ((Math.floor(x) % NX) + NX) % NX;
+    const cy = ((Math.floor(y) % NY) + NY) % NY;
+    const ox = x - Math.floor(x) - 0.5;
+    const oy = y - Math.floor(y) - 0.5;
+    const idx = (cy * NX + cx) * 4;
+    dataA[idx + 0] = ox;
+    dataA[idx + 1] = oy;
+    dataA[idx + 2] = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    dataA[idx + 3] = ((phase % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    dataB[idx + 0] = life;
+    dataB[idx + 1] = size;
+    dataB[idx + 2] = 0.0;
+    dataB[idx + 3] = 0.0;
+  }
+
+  function seedPreset(kind) {
+    const [dA, dB] = makeEmptyBuffers();
+    const cx = NX * 0.5;
+    const cy = NY * 0.5;
+    simTime = 0;
+
+    if (kind === 'single') {
+      placeBird(dA, dB, cx + 0.5, cy + 0.5, Math.PI * 0.5, 0.0, 1.0, 1.0);
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomCenter = [cx + 0.5, cy + 0.5];
+      params.modeName = 'Test: Single Bird (isolated)';
+    } else if (kind === 'chain') {
+      for (let i = 0; i < 5; i++) {
+        placeBird(dA, dB, cx + 0.5, cy - 2.0 + i * 1.15, Math.PI * 0.5, 0.2, 1.0, 1.0);
+      }
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomCenter = [cx + 0.5, cy + 1.5];
+      params.modeName = 'Test: Open Chain (5 birds)';
+    } else if (kind === 'ring' || kind === 'ring-soup') {
+      const count = 14;
+      const radius = 2.65;
+      for (let i = 0; i < count; i++) {
+        const a = (i / count) * Math.PI * 2;
+        const px = cx + Math.cos(a) * radius;
+        const py = cy + Math.sin(a) * radius;
+        const tangent = a + Math.PI * 0.5;
+        placeBird(dA, dB, px, py, tangent, 0.2, 1.0, 1.0);
+      }
+      if (kind === 'ring-soup') {
+        setSlider('sl-spawn', 'val-spawn', 'spawn', 0.08, v => v.toFixed(2));
+        params.zoomed = false;
+        params.modeName = 'Test: Closed Ring + Soup';
+      } else {
+        setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+        params.zoomed = true;
+        params.zoomCenter = [cx, cy];
+        params.modeName = 'Test: Closed Ring (14)';
+      }
+    } else if (kind === 'soup') {
+      // Seed initial random population across the 10k cells
+      for (let y = 0; y < NY; y++) {
+        for (let x = 0; x < NX; x++) {
+          if (Math.random() < 0.18) {
+            placeBird(
+              dA, dB,
+              x + 0.15 + Math.random() * 0.7,
+              y + 0.15 + Math.random() * 0.7,
+              Math.random() * Math.PI * 2,
+              Math.random() * Math.PI * 2,
+              0.8 + Math.random() * 0.4,
+              0.2 + Math.random() * 0.8
+            );
+          }
+        }
+      }
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.12, v => v.toFixed(2));
+      params.zoomed = false;
+      params.zoomCenter = [cx, cy];
+      params.modeName = 'Spontaneous Soup (10,240 cells)';
+    } else if (kind === 'headon') {
+      // Two opposing 4-bird chains flying toward each other (slight offset so deflection is clear)
+      for (let i = 0; i < 4; i++) {
+        placeBird(dA, dB, cx - 5.5 + i * 1.15, cy + 0.18, 0.0, 0.2, 1.0, 1.0);
+        placeBird(dA, dB, cx + 5.5 - i * 1.15, cy - 0.18, Math.PI, 0.2, 1.0, 1.0);
+      }
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomCenter = [cx, cy];
+      params.modeName = 'Test: Head-On Collision (Bow Pressure)';
+    } else if (kind === 'clear') {
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.modeName = 'Cleared (Drag to draw)';
+    }
+
+    uploadState(dA, dB);
+    updateModeUI(kind);
+  }
+
+  function updateModeUI(activeKind) {
+    document.getElementById('mode-label').textContent = params.modeName;
+    const map = {
+      single: 'btn-single',
+      chain: 'btn-chain',
+      ring: 'btn-ring',
+      soup: 'btn-soup',
+      'ring-soup': 'btn-ring-soup',
+      headon: 'btn-headon',
+      clear: 'btn-clear'
+    };
+    for (const [k, id] of Object.entries(map)) {
+      document.getElementById(id).classList.toggle('active', k === activeKind);
+    }
+    document.getElementById('btn-zoom').classList.toggle('active', params.zoomed);
+    document.getElementById('btn-zoom').textContent = params.zoomed ? 'Zoom Out (Space)' : 'Zoom In (Space)';
+  }
+
+  function setSlider(slId, valId, key, val, fmt) {
+    params[key] = val;
+    document.getElementById(slId).value = val;
+    document.getElementById(valId).textContent = fmt(val);
+  }
+
+  function bindSlider(slId, valId, key, fmt) {
+    const el = document.getElementById(slId);
+    const valEl = document.getElementById(valId);
+    el.addEventListener('input', () => {
+      params[key] = parseFloat(el.value);
+      valEl.textContent = fmt(params[key]);
+    });
+  }
+
+  bindSlider('sl-lifespan', 'val-lifespan', 'lifespan', v => v.toFixed(1) + ' s');
+  bindSlider('sl-freq', 'val-freq', 'freq', v => v.toFixed(1) + ' Hz');
+  bindSlider('sl-amp', 'val-amp', 'amp', v => v.toFixed(2));
+  bindSlider('sl-spawn', 'val-spawn', 'spawn', v => v.toFixed(2));
+
+  bindSlider('sl-carve', 'val-carve', 'mediumCarve', v => v.toFixed(2));
+  bindSlider('sl-wavespeed', 'val-wavespeed', 'waveSpeed', v => v.toFixed(1));
+  bindSlider('sl-wavedamp', 'val-wavedamp', 'waveDamping', v => v.toFixed(1));
+  bindSlider('sl-restore', 'val-restore', 'mediumRestore', v => v.toFixed(2));
+  bindSlider('sl-refract', 'val-refract', 'mediumRefract', v => v.toFixed(2));
+
+  bindSlider('sl-cone', 'val-cone', 'coneDeg', v => Math.round(v) + '°');
+  bindSlider('sl-reach', 'val-reach', 'reach', v => v.toFixed(2));
+  bindSlider('sl-steer', 'val-steer', 'steer', v => v.toFixed(1));
+  bindSlider('sl-sync', 'val-sync', 'sync', v => v.toFixed(1));
+  bindSlider('sl-cruise', 'val-cruise', 'cruiseSpeed', v => v.toFixed(2) + ' c/s');
+  bindSlider('sl-brace', 'val-brace', 'brace', v => v.toFixed(2));
+  bindSlider('sl-bow', 'val-bow', 'bowPressure', v => v.toFixed(2));
+  bindSlider('sl-kill', 'val-kill', 'bowKill', v => v.toFixed(2));
+  bindSlider('sl-suction', 'val-suction', 'draftSuction', v => v.toFixed(2));
+  bindSlider('sl-vortex', 'val-vortex', 'vortex', v => v.toFixed(2));
+  bindSlider('sl-rearsustain', 'val-rearsustain', 'rearSustain', v => v.toFixed(2));
+  bindSlider('sl-offcenter', 'val-offcenter', 'offCenter', v => v.toFixed(2));
+
+  document.getElementById('chk-medium').addEventListener('change', e => params.showMedium = e.target.checked);
+  document.getElementById('chk-cones').addEventListener('change', e => params.showCones = e.target.checked);
+  document.getElementById('chk-grid').addEventListener('change', e => params.showGrid = e.target.checked);
+
+  document.getElementById('btn-single').onclick = () => seedPreset('single');
+  document.getElementById('btn-chain').onclick = () => seedPreset('chain');
+  document.getElementById('btn-ring').onclick = () => seedPreset('ring');
+  document.getElementById('btn-soup').onclick = () => seedPreset('soup');
+  document.getElementById('btn-ring-soup').onclick = () => seedPreset('ring-soup');
+  document.getElementById('btn-headon').onclick = () => seedPreset('headon');
+  document.getElementById('btn-clear').onclick = () => seedPreset('clear');
+  document.getElementById('btn-freeze-spawn').onclick = () => {
+    setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+  };
+
+  document.getElementById('btn-pause').onclick = () => {
+    params.paused = !params.paused;
+    document.getElementById('btn-pause').classList.toggle('active', params.paused);
+    document.getElementById('btn-pause').textContent = params.paused ? 'Resume (P)' : 'Pause (P)';
+  };
+  document.getElementById('btn-zoom').onclick = () => {
+    params.zoomed = !params.zoomed;
+    document.getElementById('btn-zoom').classList.toggle('active', params.zoomed);
+    document.getElementById('btn-zoom').textContent = params.zoomed ? 'Zoom Out (Space)' : 'Zoom In (Space)';
+  };
+
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      document.getElementById('btn-zoom').click();
+    } else if (e.key === 'p' || e.key === 'P') {
+      document.getElementById('btn-pause').click();
+    }
+  });
+
+  // --- Mouse Drawing ---
+  let mouseDown = false;
+  let mouseWorld = [NX * 0.5, NY * 0.5];
+  let prevMouseWorld = [NX * 0.5, NY * 0.5];
+  let mouseAngle = 0;
+
+  function screenToWorld(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const u = (clientX - rect.left) / rect.width;
+    const v = 1.0 - (clientY - rect.top) / rect.height;
+    const aspect = rect.width / Math.max(rect.height, 1);
+    const gridAspect = NX / NY;
+    const zoom = currentZoom;
+    let vx = NX / zoom, vy = NY / zoom;
+    if (aspect > gridAspect) vx = vy * aspect;
+    else vy = vx / aspect;
+    return [
+      params.zoomCenter[0] + (u - 0.5) * vx,
+      params.zoomCenter[1] + (v - 0.5) * vy
+    ];
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    mouseDown = true;
+    mouseWorld = screenToWorld(e.clientX, e.clientY);
+    prevMouseWorld = [...mouseWorld];
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    const next = screenToWorld(e.clientX, e.clientY);
+    if (mouseDown) {
+      const dx = next[0] - mouseWorld[0];
+      const dy = next[1] - mouseWorld[1];
+      if (dx * dx + dy * dy > 0.02) {
+        mouseAngle = Math.atan2(dy, dx);
+        prevMouseWorld = [...mouseWorld];
+        mouseWorld = next;
+      }
+    }
+  });
+  canvas.addEventListener('pointerup', () => { mouseDown = false; });
+
+  // --- Resize ---
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.floor(canvas.clientWidth * dpr);
+    const h = Math.floor(canvas.clientHeight * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function drawQuad(prog) {
+    const loc = gl.getAttribLocation(prog, 'aPos');
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  // --- Main Loop ---
+  let frameCount = 0;
+  let simTime = 0;
+  let lastT = performance.now();
+  let fpsSmooth = 60;
+  let currentZoom = 5.5;
+
+  seedPreset('ring');
+
+  function stepSim(dt) {
+    const next = 1 - cur;
+    const mediumNext = 1 - mediumCur;
+    const coneTan = Math.tan(params.coneDeg * Math.PI / 180);
+
+    // Pass 0: Update Adaptive Scalar Wave Medium
+    gl.viewport(0, 0, NX, NY);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, mediumFbo[mediumNext]);
+    gl.useProgram(progMedium);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, mediumTex[mediumCur]);
+    gl.uniform1i(gl.getUniformLocation(progMedium, 'uMedium'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progMedium, 'uStateA'), 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, texB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progMedium, 'uStateB'), 2);
+
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uDt'), dt);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uFreq'), params.freq);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uMediumCarve'), params.mediumCarve);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uWaveSpeed'), params.waveSpeed);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uWaveDamping'), params.waveDamping);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uMediumRestore'), params.mediumRestore);
+
+    drawQuad(progMedium);
+    mediumCur = mediumNext;
+
+    // Pass 1: Update physics
+    gl.viewport(0, 0, NX, NY);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo[next]);
+    gl.useProgram(progUpdate);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uStateA'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uStateB'), 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, mediumTex[mediumCur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uMedium'), 2);
+
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uDt'), dt);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uLifespan'), params.lifespan);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uFreq'), params.freq);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uAmp'), params.amp);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uConeTan'), coneTan);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uReach'), params.reach);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uSteer'), params.steer);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uSync'), params.sync);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uCruiseSpeed'), params.cruiseSpeed);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uBrace'), params.brace);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uBowPressure'), params.bowPressure);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uBowKill'), params.bowKill);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uDraftSuction'), params.draftSuction);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uVortex'), params.vortex);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uRearSustain'), params.rearSustain);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uMediumCarve'), params.mediumCarve);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uOffCenter'), params.offCenter);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uMediumRefract'), params.mediumRefract);
+
+    drawQuad(progUpdate);
+
+    // Pass 2: Cell transfer + spawn + mouse paint
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo[cur]);
+    gl.useProgram(progAdvect);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texA[next]);
+    gl.uniform1i(gl.getUniformLocation(progAdvect, 'uStateA'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texB[next]);
+    gl.uniform1i(gl.getUniformLocation(progAdvect, 'uStateB'), 1);
+
+    gl.uniform1f(gl.getUniformLocation(progAdvect, 'uDt'), dt);
+    gl.uniform1f(gl.getUniformLocation(progAdvect, 'uSpawnRate'), params.spawn);
+    gl.uniform1f(gl.getUniformLocation(progAdvect, 'uFrame'), frameCount);
+    gl.uniform1f(gl.getUniformLocation(progAdvect, 'uTime'), simTime);
+    gl.uniform4f(gl.getUniformLocation(progAdvect, 'uMouse'), mouseWorld[0], mouseWorld[1], mouseDown ? 1.0 : 0.0, mouseAngle);
+    gl.uniform2f(gl.getUniformLocation(progAdvect, 'uPrevMouse'), prevMouseWorld[0], prevMouseWorld[1]);
+
+    drawQuad(progAdvect);
+    prevMouseWorld = [...mouseWorld];
+
+    frameCount++;
+    simTime += dt;
+  }
+
+  function render(now) {
+    resize();
+    const rawDt = Math.min((now - lastT) / 1000, 0.05);
+    lastT = now;
+    if (rawDt > 0.001) fpsSmooth = fpsSmooth * 0.92 + (1 / rawDt) * 0.08;
+
+    const targetZoom = params.zoomed ? 5.5 : 1.0;
+    currentZoom += (targetZoom - currentZoom) * Math.min(rawDt * 8.0, 1.0);
+
+    if (!params.paused) {
+      // 2 substeps per frame for smooth, rock-solid flapping & cell handoff
+      const subDt = Math.min(rawDt, 0.033) * 0.5;
+      stepSim(subDt);
+      stepSim(subDt);
+    }
+
+    // Display pass
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(progDisplay);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplay, 'uStateA'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplay, 'uStateB'), 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, mediumTex[mediumCur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplay, 'uMedium'), 2);
+
+    gl.uniform2f(gl.getUniformLocation(progDisplay, 'uRes'), canvas.width, canvas.height);
+    gl.uniform1f(gl.getUniformLocation(progDisplay, 'uZoom'), currentZoom);
+    gl.uniform2f(gl.getUniformLocation(progDisplay, 'uZoomCenter'), params.zoomCenter[0], params.zoomCenter[1]);
+    gl.uniform1f(gl.getUniformLocation(progDisplay, 'uConeTan'), Math.tan(params.coneDeg * Math.PI / 180));
+    gl.uniform1f(gl.getUniformLocation(progDisplay, 'uReach'), params.reach);
+    gl.uniform1f(gl.getUniformLocation(progDisplay, 'uShowMedium'), params.showMedium ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplay, 'uShowCones'), params.showCones ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplay, 'uShowGrid'), params.showGrid ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplay, 'uOffCenter'), params.offCenter);
+
+    drawQuad(progDisplay);
+
+    document.getElementById('stats-line').textContent =
+      `Time: ${simTime.toFixed(1)}s  |  FPS: ${Math.round(fpsSmooth)}  |  Zoom: ${currentZoom.toFixed(1)}×`;
+
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>

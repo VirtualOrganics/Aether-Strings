@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flapping Vibrations v3.0 — Conserved Dynamic Foam &amp; Compression-Bounce</title>
+<style>
+  :root {
+    --bg: #0b0e12;
+    --panel: #12171f;
+    --border: #232c3a;
+    --text: #dce4ee;
+    --muted: #8896a8;
+    --accent: #f07d32;
+    --accent2: #3dd6c6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #07090c;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
+  #hud {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(12, 16, 22, 0.84);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+  }
+  #hud .key {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: #1e2633;
+    border: 1px solid #323e52;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: #fff;
+  }
+  #sidebar {
+    width: 310px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    font-size: 12.5px;
+  }
+  h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: #fff;
+  }
+  .subtitle {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .archive-links {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+    font-size: 11px;
+  }
+  .archive-link {
+    color: var(--accent2);
+    text-decoration: none;
+  }
+  .archive-link:hover {
+    text-decoration: underline;
+  }
+  .section {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--muted);
+  }
+  .btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  button {
+    background: #1a222e;
+    color: var(--text);
+    border: 1px solid #2b3748;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  button:hover {
+    background: #232e3f;
+    border-color: #3d4e66;
+  }
+  button.active {
+    background: rgba(240, 125, 50, 0.18);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .control {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .control-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+  }
+  .control-val {
+    font-family: ui-monospace, monospace;
+    color: var(--accent2);
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .legend {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+  <div id="canvas-wrap">
+    <canvas id="glcanvas"></canvas>
+    <div id="hud">
+      <div><strong id="mode-label">Test: Closed Ring (14)</strong> &nbsp;|&nbsp; Birds: <strong>128 × 80</strong> &nbsp;|&nbsp; Foam: <strong>256 × 160</strong></div>
+      <div id="stats-line">Time: 0.0s &nbsp;|&nbsp; FPS: 60 &nbsp;|&nbsp; Zoom: 5.5×</div>
+      <div style="margin-top:4px;color:#9aa8ba;">
+        <span class="key">Space</span> Hold/Toggle Zoom &nbsp;
+        <span class="key">P</span> Pause &nbsp;
+        <span class="key">Drag</span> Draw aligned chain
+      </div>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div>
+      <h1>Flapping Vibrations v3.0</h1>
+      <div class="subtitle">Conserved Dynamic Foam &amp; Compression-Bounce</div>
+      <div class="archive-links">
+        <a class="archive-link" href="v2.1.html">v2.1 &rarr;</a>
+        <a class="archive-link" href="v2.html">v2.0 &rarr;</a>
+        <a class="archive-link" href="stage1-milestone.html">Stage 1 &rarr;</a>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Presets / Test Bench</div>
+      <div class="btn-grid">
+        <button id="btn-single">1. Single Bird</button>
+        <button id="btn-chain">2. Open Chain</button>
+        <button id="btn-ring" class="active">3. Closed Ring</button>
+        <button id="btn-soup">4. Pure Soup</button>
+        <button id="btn-cluster">5. Cluster Well</button>
+        <button id="btn-ring-soup">6. Ring + Soup</button>
+        <button id="btn-headon">7. Head-On Test</button>
+        <button id="btn-clear">Clear Grid</button>
+      </div>
+      <div class="btn-grid">
+        <button id="btn-pause">Pause (P)</button>
+        <button id="btn-zoom" class="active">Zoom Out (Space)</button>
+        <button id="btn-freeze-spawn" style="grid-column: span 2;">Stop Spawn (0)</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Oscillators &amp; Bounce</div>
+      <div class="control">
+        <div class="control-header"><span>Lifespan (isolated)</span><span class="control-val" id="val-lifespan">2.0 s</span></div>
+        <input type="range" id="sl-lifespan" min="0.5" max="8.0" step="0.1" value="2.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Stroke Drive</span><span class="control-val" id="val-strokedrive">5.0</span></div>
+        <input type="range" id="sl-strokedrive" min="1.0" max="12.0" step="0.1" value="5.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Flap Frequency</span><span class="control-val" id="val-freq">2.4 Hz</span></div>
+        <input type="range" id="sl-freq" min="1.0" max="5.0" step="0.1" value="2.4" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Spontaneous Spawn Rate</span><span class="control-val" id="val-spawn">0.00</span></div>
+        <input type="range" id="sl-spawn" min="0.0" max="0.40" step="0.01" value="0.00" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Conserved Dynamic Foam (256 × 160)</div>
+      <div class="control">
+        <div class="control-header"><span>Foam Stiffness P(&rho;)</span><span class="control-val" id="val-stiff">2.8</span></div>
+        <input type="range" id="sl-stiff" min="0.5" max="8.0" step="0.1" value="2.8" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Bird &rarr; Foam Push</span><span class="control-val" id="val-push">4.2</span></div>
+        <input type="range" id="sl-push" min="0.5" max="8.0" step="0.1" value="4.2" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Foam Drag</span><span class="control-val" id="val-drag">1.45</span></div>
+        <input type="range" id="sl-drag" min="0.2" max="4.0" step="0.05" value="1.45" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Dip Mobility (stretched)</span><span class="control-val" id="val-dipmob">1.40</span></div>
+        <input type="range" id="sl-dipmob" min="0.0" max="2.5" step="0.05" value="1.40" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Foam &rarr; Bird Coupling</div>
+      <div class="control">
+        <div class="control-header"><span>Pressure Gradient Steer (-&nabla;P)</span><span class="control-val" id="val-psteer">2.4</span></div>
+        <input type="range" id="sl-psteer" min="0.0" max="6.0" step="0.1" value="2.4" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Wake Flow Align (u)</span><span class="control-val" id="val-flowalign">3.0</span></div>
+        <input type="range" id="sl-flowalign" min="0.0" max="8.0" step="0.1" value="3.0" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Display</div>
+      <label class="toggle-row">
+        <span>Show Foam Density (&rho;)</span>
+        <input type="checkbox" id="chk-foam" checked />
+      </label>
+      <label class="toggle-row">
+        <span>Show Foam Flow (u)</span>
+        <input type="checkbox" id="chk-flow" />
+      </label>
+      <label class="toggle-row">
+        <span>Show Cell Grid (zoomed)</span>
+        <input type="checkbox" id="chk-grid" checked />
+      </label>
+      <div class="legend" style="margin-top:4px;">
+        <div class="legend-item"><span class="swatch" style="background:#f07d32;"></span>Isolated symmetric flapping (v &harr; &mdash; &harr; ^)</div>
+        <div class="legend-item"><span class="swatch" style="background:#3dd6c6;"></span>Open-chain front leader (braced from behind)</div>
+        <div class="legend-item"><span class="swatch" style="background:#ffe066;"></span>Drafting in stretched blue channel (sustained)</div>
+        <div class="legend-item"><span class="swatch" style="background:#0aa6f0;"></span>Stretched foam wake / well (&rho; &lt; 1)</div>
+        <div class="legend-item"><span class="swatch" style="background:#f59e2d;"></span>Compressed foam V-bow / flanks (&rho; &gt; 1)</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const NX = 128;
+  const NY = 80;
+  const FMX = 256;
+  const FMY = 160;
+  const canvas = document.getElementById('glcanvas');
+  const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
+  if (!gl) {
+    alert('WebGL2 is required.');
+    return;
+  }
+  const extFloat = gl.getExtension('EXT_color_buffer_float');
+  if (!extFloat) {
+    alert('EXT_color_buffer_float is required.');
+    return;
+  }
+
+  // --- Parameters (10 unified controls) ---
+  const params = {
+    lifespan: 2.0,
+    strokeDrive: 5.0,
+    freq: 2.4,
+    spawn: 0.0,
+    foamStiff: 2.8,
+    birdPush: 4.2,
+    foamDrag: 1.45,
+    dipMobility: 1.40,
+    pressSteer: 2.4,
+    flowAlign: 3.0,
+    showFoam: true,
+    showFlow: false,
+    showGrid: true,
+    paused: false,
+    zoomed: true,
+    zoomCenter: [NX * 0.5, NY * 0.5],
+    modeName: 'Test: Closed Ring (14)'
+  };
+
+  // --- GL Helpers ---
+  const VS = `#version 300 es
+  in vec2 aPos;
+  out vec2 vUV;
+  void main() {
+    vUV = aPos * 0.5 + 0.5;
+    gl_Position = vec4(aPos, 0.0, 1.0);
+  }`;
+
+  function compileShader(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(s));
+      throw new Error(gl.getShaderInfoLog(s));
+    }
+    return s;
+  }
+
+  function createProgram(fsSrc) {
+    const p = gl.createProgram();
+    gl.attachShader(p, compileShader(gl.VERTEX_SHADER, VS));
+    gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fsSrc));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      console.error(gl.getProgramInfoLog(p));
+      throw new Error(gl.getProgramInfoLog(p));
+    }
+    return p;
+  }
+
+  function createFloatTex(w, h) {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, null);
+    return tex;
+  }
+
+  function createFBO(tex0, tex1) {
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex0, 0);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, tex1, 0);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+    return fbo;
+  }
+
+  function createSingleFBO(tex0) {
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex0, 0);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+    return fbo;
+  }
+
+  // Fullscreen quad
+  const quadBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+  const COMMON_GLSL = `
+  const ivec2 GRID = ivec2(${NX}, ${NY});
+  const ivec2 FOAM = ivec2(${FMX}, ${FMY});
+  const float PI = 3.14159265359;
+  const float TAU = 6.28318530718;
+
+  ivec2 wrapBird(ivec2 c) {
+    return ((c % GRID) + GRID) % GRID;
+  }
+
+  ivec2 wrapFoam(ivec2 c) {
+    return ((c % FOAM) + FOAM) % FOAM;
+  }
+
+  uint hashUint(uint x) {
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+  }
+
+  float rand01(ivec2 cell, uint seed) {
+    uint h = hashUint(uint(cell.x) + uint(cell.y) * 1973u + seed * 9277u);
+    return float(h >> 8) / 16777216.0;
+  }
+
+  // Asymmetric viscoelastic foam equation of state:
+  //   Compressed (rho > 1): gentle low-d slope (c0 < v_train -> Mach > 2 V-bow & flank walls) + cubic jam wall
+  //   Stretched  (rho < 1): soft tension compliance so wakes linger cleanly without blasting outward
+  float foamPressure(float rho, float stiff) {
+    float d = clamp(rho - 1.0, -0.92, 0.70);
+    if (d >= 0.0) {
+      return stiff * (0.32 * d + 1.8 * d * d + 24.0 * d * d * d);
+    }
+    return stiff * (0.16 * d);
+  }
+
+  float foamSoundSpeed(float rho, float stiff) {
+    float d = clamp(rho - 1.0, -0.92, 0.70);
+    float dp = (d >= 0.0)
+      ? stiff * (0.32 + 3.6 * d + 72.0 * d * d)
+      : stiff * 0.16;
+    return sqrt(max(dp, 0.05));
+  }
+  `;
+
+  // --- PASS 0: 2nd-Order MUSCL Flux-Conservative Dynamic Foam PDE (256 x 160) ---
+  const FOAM_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uFoam;   // (rho, mx, my, vort)
+  uniform sampler2D uStateA; // (pos.x, pos.y, angle, vAxial)
+  uniform sampler2D uStateB; // (life, size, q, vq)
+  uniform float uDt;
+  uniform float uFreq;
+  uniform float uFoamStiff;
+  uniform float uBirdPush;
+  uniform float uFoamDrag;
+  uniform float uDipMobility;
+
+  out vec4 outFoam;
+
+  ${COMMON_GLSL}
+
+  vec3 rusanovFlux(vec3 UL, vec3 UR, vec2 n) {
+    float rhoL = max(UL.x, 0.10);
+    float rhoR = max(UR.x, 0.10);
+    vec2 uL = UL.yz / rhoL;
+    vec2 uR = UR.yz / rhoR;
+    float sL = length(uL);
+    if (sL > 4.5) uL *= 4.5 / sL;
+    float sR = length(uR);
+    if (sR > 4.5) uR *= 4.5 / sR;
+
+    float pL = foamPressure(UL.x, uFoamStiff);
+    float pR = foamPressure(UR.x, uFoamStiff);
+    float cL = foamSoundSpeed(UL.x, uFoamStiff);
+    float cR = foamSoundSpeed(UR.x, uFoamStiff);
+
+    float mL = dot(UL.yz, n);
+    float mR = dot(UR.yz, n);
+    vec3 FL = vec3(mL, uL * mL + pL * n);
+    vec3 FR = vec3(mR, uR * mR + pR * n);
+
+    float aMax = max(abs(dot(uL, n)) + cL, abs(dot(uR, n)) + cR);
+    vec3 flux = 0.5 * (FL + FR) - 0.5 * aMax * (UR - UL);
+
+    // Strictly anti-symmetric low-density mass-flux limiter preserves exact sum(rho)
+    if (flux.x > 0.0) {
+      flux.x *= smoothstep(0.08, 0.18, UL.x);
+    } else {
+      flux.x *= smoothstep(0.08, 0.18, UR.x);
+    }
+    return flux;
+  }
+
+  vec3 minmod3(vec3 a, vec3 b) {
+    vec3 s = 0.5 * (sign(a) + sign(b));
+    return s * min(abs(a), abs(b));
+  }
+
+  vec3 faceFluxMUSCL(vec3 Um1, vec3 U0, vec3 Up1, vec3 Up2, vec2 n) {
+    vec3 slopeL = minmod3(U0 - Um1, Up1 - U0);
+    vec3 slopeR = minmod3(Up1 - U0, Up2 - Up1);
+    vec3 UL = U0  + 0.5 * slopeL;
+    vec3 UR = Up1 - 0.5 * slopeR;
+    UL.x = max(UL.x, 0.08);
+    UR.x = max(UR.x, 0.08);
+    return rusanovFlux(UL, UR, n);
+  }
+
+  vec2 velAt(vec3 U) {
+    return U.yz / max(U.x, 0.12);
+  }
+
+  void main() {
+    ivec2 fCell = ivec2(floor(gl_FragCoord.xy));
+    vec3 U    = texelFetch(uFoam, fCell, 0).rgb;
+    vec3 Upx  = texelFetch(uFoam, wrapFoam(fCell + ivec2( 1,  0)), 0).rgb;
+    vec3 Upx2 = texelFetch(uFoam, wrapFoam(fCell + ivec2( 2,  0)), 0).rgb;
+    vec3 Unx  = texelFetch(uFoam, wrapFoam(fCell + ivec2(-1,  0)), 0).rgb;
+    vec3 Unx2 = texelFetch(uFoam, wrapFoam(fCell + ivec2(-2,  0)), 0).rgb;
+    vec3 Upy  = texelFetch(uFoam, wrapFoam(fCell + ivec2( 0,  1)), 0).rgb;
+    vec3 Upy2 = texelFetch(uFoam, wrapFoam(fCell + ivec2( 0,  2)), 0).rgb;
+    vec3 Uny  = texelFetch(uFoam, wrapFoam(fCell + ivec2( 0, -1)), 0).rgb;
+    vec3 Uny2 = texelFetch(uFoam, wrapFoam(fCell + ivec2( 0, -2)), 0).rgb;
+
+    vec3 fluxPX = faceFluxMUSCL(Unx, U, Upx, Upx2, vec2( 1.0,  0.0));
+    vec3 fluxNX = faceFluxMUSCL(Upx, U, Unx, Unx2, vec2(-1.0,  0.0));
+    vec3 fluxPY = faceFluxMUSCL(Uny, U, Upy, Upy2, vec2( 0.0,  1.0));
+    vec3 fluxNY = faceFluxMUSCL(Upy, U, Uny, Uny2, vec2( 0.0, -1.0));
+
+    // Cell spacing H = 0.5 bird-cells
+    U -= (uDt / 0.5) * (fluxPX + fluxNX + fluxPY + fluxNY);
+
+    // Light shear viscosity on momentum ONLY (never diffuse mass rho!)
+    vec2 uC  = velAt(U);
+    vec2 uPX = velAt(Upx);
+    vec2 uNX = velAt(Unx);
+    vec2 uPY = velAt(Upy);
+    vec2 uNY = velAt(Uny);
+    vec2 lapU = (uPX + uNX + uPY + uNY) - 4.0 * uC;
+    U.yz += lapU * (0.10 * uDt * max(U.x, 0.12));
+
+    // Bird -> Foam 2D Swept V-Wing Parting + Pulsed Bow/Rowing Force
+    vec2 worldPos = (vec2(fCell) + 0.5) * 0.5;
+    ivec2 bBase = ivec2(floor(worldPos));
+    vec2 forceSum = vec2(0.0);
+    float omega = TAU * uFreq;
+
+    for (int dy = -1; dy <= 1; dy++) {
+      for (int dx = -1; dx <= 1; dx++) {
+        ivec2 bRaw = bBase + ivec2(dx, dy);
+        ivec2 bCell = wrapBird(bRaw);
+        vec4 nB = texelFetch(uStateB, bCell, 0);
+        if (nB.r <= 0.001) continue;
+
+        vec4 nA = texelFetch(uStateA, bCell, 0);
+        vec2 nWorld = vec2(bRaw) + 0.5 + nA.rg;
+        vec2 rel = worldPos - nWorld;
+        float r2 = dot(rel, rel);
+        if (r2 > 2.56) continue;
+
+        float nSize = nB.g;
+        float nLifeMask = smoothstep(0.0, 0.25, nB.r);
+        float nVax = nA.a;
+        float nVqNorm = clamp(nB.a / max(omega, 1.0), -1.25, 1.25);
+
+        vec2 nDir = vec2(cos(nA.b), sin(nA.b));
+        vec2 nPerp = vec2(-nDir.y, nDir.x);
+        float ahead = dot(rel, nDir);
+        float lat = dot(rel, nPerp);
+
+        // 1) Swept V-wing outward parting (±perp):
+        //    Exact front-back symmetry when idle (cruiseAmt == 0) + swept V-wing at cruise (cruiseAmt == 1)
+        float cruiseAmt = smoothstep(0.35, 1.25, nVax);
+        float latPart = tanh(lat / (0.28 * nSize));
+        float vSweepAhead = ahead + (0.35 * cruiseAmt) * abs(lat);
+        float wingCenter = 0.18 * cruiseAmt * nSize;
+        float wWing = exp(-(
+          pow((vSweepAhead - wingCenter) / (0.40 * nSize), 2.0)
+          + pow(lat / (0.56 * nSize), 2.0)
+        ));
+        float flapPulse = 0.70 + 0.40 * abs(nVqNorm);
+        float partStrength = uBirdPush * (0.98 * cruiseAmt + 0.42) * flapPulse;
+        vec2 fPart = nPerp * (latPart * partStrength * wWing);
+
+        // 2) Broad forward slipstream / rowing push along nDir (reaches chain neighbors + piles Mach V-bow)
+        float bodyCenter = 0.12 * cruiseAmt * nSize;
+        float wBody = exp(-(
+          pow((ahead - bodyCenter) / (0.54 * nSize), 2.0)
+          + pow(lat / (0.42 * nSize), 2.0)
+        ));
+        float fwdPush = mix(
+          nVqNorm * (uBirdPush * 0.90),
+          (0.45 * nVax + 0.32 * max(nVqNorm, 0.0) + 0.38) * uBirdPush,
+          cruiseAmt
+        );
+        vec2 fFwd = nDir * (fwdPush * wBody);
+
+        forceSum += (fPart + fFwd) * nLifeMask;
+      }
+    }
+
+    U.yz += forceSum * uDt;
+
+    // Exotic inverse-density drag on momentum (never touches mass U.x):
+    // Stretched dips (rho < 1) coast effortlessly; compressed walls (rho > 1) damp & stiffen
+    float cold = clamp(1.0 - U.x, 0.0, 0.85);
+    float hot  = clamp(U.x - 1.0, 0.0, 1.0);
+    float gamma = uFoamDrag * mix(1.0, 0.22, clamp(cold * 1.8 * uDipMobility, 0.0, 1.0)) * (1.0 + 0.9 * hot);
+    U.yz *= exp(-gamma * uDt);
+
+    float rhoSafe = max(U.x, 0.12);
+    float uMag = length(U.yz) / rhoSafe;
+    if (uMag > 4.5) {
+      U.yz *= 4.5 / uMag;
+    }
+
+    float vort = (uPX.y - uNX.y) - (uPY.x - uNY.x);
+    outFoam = vec4(U.x, U.y, U.z, vort);
+  }
+  `;
+
+  // --- PASS 1: Coupled Elastic Flapping + Foam Symmetry Breaking (128 x 80) ---
+  const BIRD_UPDATE_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uStateA; // (pos.x, pos.y, angle, vAxial)
+  uniform sampler2D uStateB; // (life, size, q, vq)
+  uniform sampler2D uFoam;   // (rho, mx, my, vort)
+  uniform float uDt;
+  uniform float uLifespan;
+  uniform float uFreq;
+  uniform float uStrokeDrive;
+  uniform float uFoamStiff;
+  uniform float uDipMobility;
+  uniform float uPressSteer;
+  uniform float uFlowAlign;
+
+  layout(location = 0) out vec4 outA;
+  layout(location = 1) out vec4 outB;
+
+  ${COMMON_GLSL}
+
+  vec4 sampleFoam(vec2 birdWorldPos) {
+    vec2 probeTex = birdWorldPos * 2.0 - 0.5;
+    ivec2 b0 = ivec2(floor(probeTex));
+    vec2 f = fract(probeTex);
+    vec4 f00 = texelFetch(uFoam, wrapFoam(b0), 0);
+    vec4 f10 = texelFetch(uFoam, wrapFoam(b0 + ivec2(1, 0)), 0);
+    vec4 f01 = texelFetch(uFoam, wrapFoam(b0 + ivec2(0, 1)), 0);
+    vec4 f11 = texelFetch(uFoam, wrapFoam(b0 + ivec2(1, 1)), 0);
+    return mix(mix(f00, f10, f.x), mix(f01, f11, f.x), f.y);
+  }
+
+  void main() {
+    ivec2 cell = ivec2(floor(gl_FragCoord.xy));
+    vec4 sA = texelFetch(uStateA, cell, 0);
+    vec4 sB = texelFetch(uStateB, cell, 0);
+
+    float life = sB.r;
+    if (life <= 0.001) {
+      outA = vec4(0.0);
+      outB = vec4(0.0);
+      return;
+    }
+
+    vec2 pos = sA.rg;
+    float angle = sA.b;
+    float vAxial = sA.a;
+    float size = sB.g;
+    float q = sB.b;
+    float vq = sB.a;
+
+    vec2 dir = vec2(cos(angle), sin(angle));
+    vec2 perp = vec2(-dir.y, dir.x);
+    vec2 wPos = vec2(cell) + 0.5 + pos;
+
+    // Sample dynamic foam around the bird
+    vec4 fHere    = sampleFoam(wPos);
+    vec4 fFront   = sampleFoam(wPos + dir * (0.60 * size));
+    vec4 fBack    = sampleFoam(wPos - dir * (0.60 * size));
+    vec4 fAhead   = sampleFoam(wPos + dir * (0.95 * size));
+    vec4 fBackFar = sampleFoam(wPos - dir * (0.95 * size));
+    vec4 fLeft     = sampleFoam(wPos + dir * (0.70 * size) + perp * (0.78 * size));
+    vec4 fRight    = sampleFoam(wPos + dir * (0.70 * size) - perp * (0.78 * size));
+    vec4 fFarAhead = sampleFoam(wPos + dir * (1.35 * size));
+    vec4 fFarBack  = sampleFoam(wPos - dir * (1.35 * size));
+
+    float rhoHere  = fHere.r;
+    float rhoFront = fFront.r;
+    float rhoBack  = fBack.r;
+
+    vec2 uHere    = fHere.gb    / max(rhoHere, 0.12);
+    vec2 uFront   = fFront.gb   / max(rhoFront, 0.12);
+    vec2 uBack    = fBack.gb    / max(rhoBack, 0.12);
+    vec2 uAhead   = fAhead.gb   / max(fAhead.r, 0.12);
+    vec2 uBackFar = fBackFar.gb / max(fBackFar.r, 0.12);
+
+    float pFront = foamPressure(rhoFront, uFoamStiff);
+    float pBack  = foamPressure(rhoBack, uFoamStiff);
+    float pLeft  = foamPressure(fLeft.r, uFoamStiff);
+    float pRight = foamPressure(fRight.r, uFoamStiff);
+
+    // 1) Coupled elastic flapping vibration (q, vq): v <-> — <-> ^ driven by oscillator & foam pressure
+    float omega = TAU * uFreq;
+    float r2Osc = q * q + (vq / max(omega, 0.5)) * (vq / max(omega, 0.5));
+    float foamOnOsc = clamp(-2.6 * (pFront - pBack) / max(uFoamStiff, 0.4), -1.8, 1.8);
+    float aq = -omega * omega * q + 3.4 * omega * (1.0 - r2Osc) * vq + foamOnOsc * omega;
+    vq += aq * uDt;
+    q = clamp(q + vq * uDt, -1.25, 1.25);
+    float strokeVel = clamp(vq / max(omega, 0.5), -1.25, 1.25);
+
+    // 2) Foam-driven symmetry breaking & rhythmic rowing propulsion
+    float uAheadStream = max(dot(uAhead, dir), 0.0);
+    float uBackPush    = max(dot(uBackFar, dir), 0.0);
+    float uAlong       = dot(uHere * 0.40 + uBack * 0.30 + uFront * 0.30, dir);
+
+    // True stretched-channel drafting (requires stretched blue foam ahead OR inner well + forward stream)
+    float channelBlue = smoothstep(0.988, 0.85, min(rhoHere, min(rhoFront, fAhead.r)));
+    float wellBlue    = smoothstep(0.988, 0.85, min(fLeft.r, fRight.r));
+    float aheadDraft  = max(channelBlue * smoothstep(0.05, 0.34, uAheadStream), wellBlue * smoothstep(0.06, 0.36, uAheadStream));
+    float rearBrace   = smoothstep(0.12, 0.48, uBackPush);
+    // Stepping-stone asymmetry: denser foam behind + neighbor's blue pocket ahead (ignites soup pairs, zero at cruise & for Single Bird)
+    float noFrontWall = smoothstep(1.05, 0.995, rhoFront);
+    float ignitGate   = smoothstep(1.45, 0.45, vAxial);
+    float stepStone   = smoothstep(0.975, 0.88, fFarAhead.r)
+                      * smoothstep(0.015, 0.080, fFarBack.r - fFarAhead.r)
+                      * noFrontWall
+                      * ignitGate;
+    float support     = clamp(aheadDraft + rearBrace + 0.75 * stepStone, 0.0, 1.0);
+
+    // Symmetric elastic oscillation (isolated birds rock v <-> — <-> ^ with zero net drift)
+    float aOsc = strokeVel * uStrokeDrive * 0.85 * (1.0 - 0.58 * support);
+
+    // Emergent unidirectional rowing thrust when drafting in blue channel, braced from behind, or stepping into a neighbor dip
+    float rowPulse = 0.72 + 0.50 * max(-strokeVel, 0.0);
+    float fwdThrust = uStrokeDrive * (1.20 * aheadDraft + 1.15 * rearBrace + 1.15 * stepStone) * rowPulse;
+
+    float aPress = -6.2 * (pFront - pBack) / max(1.20 * size, 0.8);
+
+    float coldLocal = clamp(1.0 - min(min(rhoHere, fAhead.r), min(fLeft.r, fRight.r)), 0.0, 0.85);
+    float hotLocal  = clamp(max(rhoHere, rhoFront) - 1.0, 0.0, 1.0);
+    float birdDrag  = 3.4 * mix(1.0, 0.42, clamp(coldLocal * 1.7 * uDipMobility, 0.0, 1.0)) * (1.0 + 1.5 * hotLocal);
+    float aDrag     = -birdDrag * (vAxial - uAlong * mix(0.20, 0.90, support));
+
+    vAxial = clamp(vAxial + (aOsc + fwdThrust + aPress + aDrag) * uDt, -2.6, 2.6);
+
+    // 3) Self-stabilizing foam steering (-grad_perp P & soft-clamped rho + wake stream weathervaning)
+    float steerGate = 0.45 + 0.55 * smoothstep(0.15, 0.70, abs(vAxial));
+    float rhoLSoft = clamp(fLeft.r  - 1.0, -0.28, 0.22);
+    float rhoRSoft = clamp(fRight.r - 1.0, -0.28, 0.22);
+    float pressGrad = clamp(
+      0.38 * (pRight - pLeft) / max(uFoamStiff, 0.3)
+      + 0.68 * (rhoRSoft - rhoLSoft),
+      -0.52,
+      0.52
+    );
+    float turnScale = clamp(max(vAxial, 1.1) / 2.1, 0.52, 1.4);
+    angle += pressGrad * uPressSteer * turnScale * steerGate * uDt;
+
+    float backW = 0.25 * (1.0 - smoothstep(0.35, 1.15, vAxial));
+    vec2 uStream = (0.65 - backW) * uAhead + 0.35 * uHere + backW * uBack;
+    float uMag = length(uStream);
+    if (uMag > 0.07 && steerGate > 0.01) {
+      vec2 uDir = uStream / uMag;
+      if (dot(dir, uDir) > -0.45) {
+        float turnToFlow = atan(dir.x * uDir.y - dir.y * uDir.x, dot(dir, uDir));
+        angle += turnToFlow * uFlowAlign * clamp(uMag * 1.0, 0.0, 1.0) * steerGate * uDt;
+      }
+    }
+
+    angle = mod(angle + TAU, TAU);
+    dir = vec2(cos(angle), sin(angle));
+
+    // 4) Excluded-volume solid-body guard (prevents 2 birds colliding into 1 grid cell)
+    vec2 stericPush = vec2(0.0);
+    float closestFwdDist = 99.0;
+    float closestFwdCheb = 99.0;
+    vec2 closestFwdChord = vec2(0.0);
+    vec2 closestFwdPos = vec2(0.0);
+    float closestFwdSpeedMatch = 99.0;
+
+    float moveSign = vAxial >= 0.0 ? 1.0 : -1.0;
+    vec2 moveDir = dir * moveSign;
+
+    for (int dy = -2; dy <= 2; dy++) {
+      for (int dx = -2; dx <= 2; dx++) {
+        if (dx == 0 && dy == 0) continue;
+        ivec2 nCell = wrapBird(cell + ivec2(dx, dy));
+        vec4 nB = texelFetch(uStateB, nCell, 0);
+        if (nB.r <= 0.001) continue;
+
+        vec4 nA = texelFetch(uStateA, nCell, 0);
+        vec2 nPos = vec2(float(dx), float(dy)) + nA.rg;
+        vec2 toN = nPos - pos;
+        float dist = length(toN);
+        float cheb = max(abs(toN.x), abs(toN.y));
+        if (dist < 0.01 || dist > 1.65) continue;
+
+        if (dist < 1.24) {
+          float rep = (1.24 - dist) / 1.24;
+          stericPush -= (toN / dist) * (rep * 4.5);
+        }
+        if (cheb < 1.08) {
+          float crep = (1.08 - cheb) / 1.08;
+          stericPush -= (toN / dist) * (crep * 4.0);
+        }
+
+        vec2 chord = toN / dist;
+        if (dot(chord, moveDir) > 0.35 && cheb < closestFwdCheb) {
+          closestFwdDist = dist;
+          closestFwdCheb = cheb;
+          closestFwdChord = chord;
+          closestFwdPos = nPos;
+
+          vec2 nDir = vec2(cos(nA.b), sin(nA.b));
+          if (dot(dir, nDir) > 0.2 && vAxial > 0.0 && nA.a > 0.0) {
+            closestFwdSpeedMatch = nA.a;
+          } else {
+            closestFwdSpeedMatch = 99.0;
+          }
+        }
+      }
+    }
+
+    if ((closestFwdDist < 1.22 || closestFwdCheb < 1.12) && closestFwdSpeedMatch < 50.0 && vAxial > 0.0) {
+      float matchFrac = max(smoothstep(1.22, 1.06, closestFwdDist), smoothstep(1.12, 1.02, closestFwdCheb));
+      if (vAxial > closestFwdSpeedMatch) {
+        vAxial = mix(vAxial, closestFwdSpeedMatch, matchFrac * 0.65);
+      }
+    }
+
+    vec2 vel = dir * vAxial + uHere * 0.20 + stericPush;
+    if (closestFwdDist < 1.20 || closestFwdCheb < 1.10) {
+      float closing = max(dot(vel, closestFwdChord), 0.0);
+      float brakeFrac = max(smoothstep(1.20, 1.05, closestFwdDist), smoothstep(1.10, 1.02, closestFwdCheb));
+      vel -= closestFwdChord * (closing * brakeFrac);
+      if (closestFwdDist < 1.08 || closestFwdCheb < 1.04) {
+        float pen = max(1.08 - closestFwdDist, 1.04 - closestFwdCheb);
+        vel -= closestFwdChord * (pen * 5.0);
+      }
+    }
+
+    vec2 stepMove = vel * uDt;
+    float moveLen = length(stepMove);
+    if (moveLen > 0.40) {
+      stepMove *= 0.40 / moveLen;
+    }
+
+    if (closestFwdDist < 1.48 || closestFwdCheb < 1.16) {
+      vec2 nextDiff = (pos + stepMove) - closestFwdPos;
+      float nextDist = length(nextDiff);
+      float nextCheb = max(abs(nextDiff.x), abs(nextDiff.y));
+      if (nextDist < 1.04 || nextCheb < 1.03) {
+        float fwdComp = max(dot(stepMove, closestFwdChord), 0.0);
+        stepMove -= closestFwdChord * fwdComp;
+      }
+    }
+
+    pos += stepMove;
+
+    // 5) Foam-native lifespan (sustained by stretched-channel drafting, rear stepping-stone brace, & pair ignition)
+    float decay = uDt / max(uLifespan, 0.2);
+    float fwdCue = smoothstep(0.35, 1.05, vAxial);
+    float draftSustain = (2.4 * decay) * aheadDraft * fwdCue;
+    float rearSustain  = (1.30 * decay) * rearBrace * fwdCue;
+    float stepSustain  = (0.55 * decay) * stepStone * smoothstep(0.15, 0.70, vAxial);
+    float shockCost    = uDt * 1.4 * max(rhoFront - 1.22, 0.0) * (1.0 - 0.85 * support);
+    life = clamp(life - decay - shockCost + draftSustain + rearSustain + stepSustain, 0.0, 1.0);
+
+    outA = vec4(pos, angle, vAxial);
+    outB = vec4(life, size, q, vq);
+  }
+  `;
+
+  // --- PASS 2: Cell Transfer (3x3 gather) + Spontaneous Nucleation + Mouse Paint ---
+  const ADVECT_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uStateA;
+  uniform sampler2D uStateB;
+  uniform float uDt;
+  uniform float uFreq;
+  uniform float uSpawnRate;
+  uniform float uFrame;
+  uniform float uTime;
+  uniform vec4 uMouse;      // xy = world cell pos, z = down (0/1), w = stroke angle
+  uniform vec2 uPrevMouse;  // previous world cell pos
+
+  layout(location = 0) out vec4 outA;
+  layout(location = 1) out vec4 outB;
+
+  ${COMMON_GLSL}
+
+  float distToSeg(vec2 p, vec2 a, vec2 b) {
+    vec2 ab = b - a;
+    float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-5), 0.0, 1.0);
+    return length(p - (a + ab * t));
+  }
+
+  void main() {
+    ivec2 cell = ivec2(floor(gl_FragCoord.xy));
+    float omega = TAU * uFreq;
+
+    vec4 bestA = vec4(0.0);
+    vec4 bestB = vec4(0.0);
+    float bestScore = -1.0;
+    bool nearbyOccupied = false;
+
+    for (int dy = -1; dy <= 1; dy++) {
+      for (int dx = -1; dx <= 1; dx++) {
+        ivec2 srcCell = wrapBird(cell + ivec2(dx, dy));
+        vec4 sB = texelFetch(uStateB, srcCell, 0);
+        if (sB.r <= 0.001) continue;
+
+        vec4 sA = texelFetch(uStateA, srcCell, 0);
+        vec2 relPos = vec2(float(dx), float(dy)) + sA.rg;
+
+        float clearRadius = abs(sA.a) > 0.5 ? 1.40 : 1.25;
+        if (length(relPos) < clearRadius) {
+          nearbyOccupied = true;
+        }
+
+        if (relPos.x >= -0.5 && relPos.x < 0.5 && relPos.y >= -0.5 && relPos.y < 0.5) {
+          float score = sB.r + 0.25 * clamp(abs(sA.a), 0.0, 2.0) - 0.1 * length(relPos);
+          if (score > bestScore) {
+            bestScore = score;
+            bestA = vec4(relPos, sA.b, sA.a);
+            bestB = sB;
+          }
+        }
+      }
+    }
+
+    // Mouse painting: aligned unidirectional probe chain
+    if (uMouse.z > 0.5) {
+      vec2 cellCenter = vec2(cell) + 0.5;
+      float d = distToSeg(cellCenter, uPrevMouse, uMouse.xy);
+      if (d < 0.72 && bestB.r <= 0.05) {
+        bestA = vec4(0.0, 0.0, uMouse.w, 1.4);
+        bestB = vec4(1.0, 1.0, 0.5, omega * 0.5);
+      }
+    }
+
+    // Spontaneous nucleation in empty, uncrowded cells (pure symmetric oscillator)
+    if (!nearbyOccupied && bestB.r <= 0.001 && uSpawnRate > 0.0) {
+      uint seed = uint(uFrame) * 1664525u + 1013904223u;
+      float r = rand01(cell, seed);
+      if (r < uSpawnRate * uDt) {
+        float ox = (rand01(cell, seed + 1u) - 0.5) * 0.7;
+        float oy = (rand01(cell, seed + 2u) - 0.5) * 0.7;
+        float ang = rand01(cell, seed + 3u) * TAU;
+        float phi = rand01(cell, seed + 4u) * TAU;
+        float sz = mix(0.75, 1.25, rand01(cell, seed + 5u));
+        bestA = vec4(ox, oy, ang, 0.0);
+        bestB = vec4(1.0, sz, cos(phi), omega * sin(phi));
+      }
+    }
+
+    outA = bestA;
+    outB = bestB;
+  }
+  `;
+
+  // --- DISPLAY SHADER ---
+  const DISPLAY_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uStateA;
+  uniform sampler2D uStateB;
+  uniform sampler2D uFoam;
+  uniform vec2 uRes;
+  uniform float uZoom;
+  uniform vec2 uZoomCenter;
+  uniform float uShowFoam;
+  uniform float uShowFlow;
+  uniform float uShowGrid;
+
+  in vec2 vUV;
+  out vec4 fragColor;
+
+  ${COMMON_GLSL}
+
+  float sdSeg(vec2 p, vec2 a, vec2 b) {
+    vec2 pa = p - a, ba = b - a;
+    float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
+    return length(pa - ba * h);
+  }
+
+  vec4 sampleFoamDisp(vec2 worldPos) {
+    vec2 mTex = worldPos * 2.0 - 0.5;
+    ivec2 mb = ivec2(floor(mTex));
+    vec2 mf = fract(mTex);
+    vec4 m00 = texelFetch(uFoam, wrapFoam(mb), 0);
+    vec4 m10 = texelFetch(uFoam, wrapFoam(mb + ivec2(1, 0)), 0);
+    vec4 m01 = texelFetch(uFoam, wrapFoam(mb + ivec2(0, 1)), 0);
+    vec4 m11 = texelFetch(uFoam, wrapFoam(mb + ivec2(1, 1)), 0);
+    return mix(mix(m00, m10, mf.x), mix(m01, m11, mf.x), mf.y);
+  }
+
+  void main() {
+    float aspect = uRes.x / max(uRes.y, 1.0);
+    float gridAspect = float(GRID.x) / float(GRID.y);
+
+    vec2 viewSize = vec2(float(GRID.x), float(GRID.y)) / uZoom;
+    if (aspect > gridAspect) {
+      viewSize.x = viewSize.y * aspect;
+    } else {
+      viewSize.y = viewSize.x / aspect;
+    }
+
+    vec2 worldPos = uZoomCenter + (vUV - 0.5) * viewSize;
+    float pxSize = viewSize.y / max(uRes.y, 1.0);
+
+    vec3 col = vec3(0.045, 0.055, 0.072);
+
+    if (uZoom <= 1.05 && (worldPos.x < 0.0 || worldPos.x > float(GRID.x) || worldPos.y < 0.0 || worldPos.y > float(GRID.y))) {
+      fragColor = vec4(0.02, 0.025, 0.035, 1.0);
+      return;
+    }
+
+    if (uShowFoam > 0.5 || uShowFlow > 0.5) {
+      vec4 fm = sampleFoamDisp(worldPos);
+      float rho = fm.r;
+      float d = rho - 1.0;
+
+      if (uShowFoam > 0.5) {
+        // 1) Soft large-scale "spacetime" density slope (|d| in [0.002, 0.045])
+        if (d < -0.002) {
+          float bgDip = smoothstep(0.002, 0.045, -d);
+          col = mix(col, vec3(0.05, 0.14, 0.30), bgDip * 0.42);
+        } else if (d > 0.002) {
+          float bgHi = smoothstep(0.002, 0.045, d);
+          col = mix(col, vec3(0.14, 0.11, 0.08), bgHi * 0.34);
+        }
+
+        // 2) Crisp local wakes (blue/cyan) & narrow compression bow/flank bands (amber/orange/gold)
+        if (d < -0.018) {
+          float dipT = smoothstep(0.018, 0.26, -d);
+          vec3 dipCol = mix(vec3(0.04, 0.30, 0.52), vec3(0.05, 0.72, 0.96), smoothstep(0.0, 0.5, dipT));
+          dipCol = mix(dipCol, vec3(0.10, 0.42, 1.00), smoothstep(0.5, 1.0, dipT));
+          col = mix(col, dipCol, clamp(dipT * 0.88, 0.0, 0.90));
+        } else if (d > 0.015) {
+          float peakT = smoothstep(0.015, 0.16, d);
+          vec3 peakCol = mix(vec3(0.58, 0.24, 0.04), vec3(0.98, 0.52, 0.10), smoothstep(0.0, 0.55, peakT));
+          peakCol = mix(peakCol, vec3(1.00, 0.82, 0.26), smoothstep(0.55, 1.0, peakT));
+          col = mix(col, peakCol, clamp(peakT * 0.90, 0.0, 0.90));
+        }
+      }
+
+      if (uShowFlow > 0.5) {
+        vec2 u = fm.gb / max(rho, 0.12);
+        float uMag = length(u);
+        if (uMag > 0.06) {
+          float ang = atan(u.y, u.x);
+          float phaseLine = 0.5 + 0.5 * sin(dot(worldPos, u / uMag) * 14.0);
+          vec3 dirTint = 0.5 + 0.5 * cos(ang + vec3(0.0, 2.1, 4.2));
+          float flowAlpha = smoothstep(0.06, 1.4, uMag) * mix(0.12, 0.35, phaseLine);
+          col = mix(col, mix(vec3(0.25, 0.88, 0.80), dirTint, 0.45), flowAlpha);
+        }
+      }
+    }
+
+    if (uShowGrid > 0.5 && uZoom > 1.8) {
+      vec2 f = fract(worldPos);
+      vec2 edge = min(f, 1.0 - f);
+      float gDist = min(edge.x, edge.y);
+      float gridAlpha = (1.0 - smoothstep(0.0, pxSize * 1.4, gDist)) * smoothstep(1.8, 3.5, uZoom) * 0.22;
+      col = mix(col, vec3(0.32, 0.39, 0.48), gridAlpha);
+    }
+
+    ivec2 baseCell = ivec2(floor(worldPos));
+    vec3 birdCol = vec3(0.0);
+    float birdAlpha = 0.0;
+
+    for (int dy = -1; dy <= 1; dy++) {
+      for (int dx = -1; dx <= 1; dx++) {
+        ivec2 c = baseCell + ivec2(dx, dy);
+        ivec2 wc = wrapBird(c);
+        vec4 sB = texelFetch(uStateB, wc, 0);
+        if (sB.r <= 0.001) continue;
+
+        vec4 sA = texelFetch(uStateA, wc, 0);
+        vec2 center = vec2(c) + 0.5 + sA.rg;
+        vec2 rel = worldPos - center;
+
+        float life = sB.r;
+        float size = sB.g;
+        float q = clamp(sB.b, -1.1, 1.1);
+        float vAxial = sA.a;
+
+        vec2 dir = vec2(cos(sA.b), sin(sA.b));
+        vec2 perp = vec2(-dir.y, dir.x);
+
+        // Physically honest coloring from live foam + motion:
+        // orange = isolated bouncing, cyan = open-chain front leader, gold = drafted inside stretched blue wake
+        vec4 fmAhead = sampleFoamDisp(center + dir * (0.75 * size));
+        float inBlue = smoothstep(0.99, 0.90, fmAhead.r);
+        float gliding = smoothstep(0.35, 1.15, vAxial);
+
+        vec3 cBouncing = vec3(0.95, 0.47, 0.18);
+        vec3 cLeader   = vec3(0.22, 0.85, 0.78);
+        vec3 cDrafting = vec3(1.00, 0.88, 0.38);
+        vec3 baseCol = mix(cBouncing, mix(cLeader, cDrafting, inBlue), gliding);
+
+        float mask = 0.0;
+        if (uZoom > 1.6) {
+          float wingSpan = 0.34 * size;
+          float rect = smoothstep(0.35, 1.10, vAxial);
+          float sweep = size * mix(0.30 * q, 0.20 + 0.14 * q, rect);
+          vec2 tip = dir * (0.52 * sweep);
+          vec2 leftWing  = -dir * (0.48 * sweep) + perp * wingSpan;
+          vec2 rightWing = -dir * (0.48 * sweep) - perp * wingSpan;
+
+          float d = min(sdSeg(rel, tip, leftWing), sdSeg(rel, tip, rightWing));
+          float strokeW = max(0.055 * size, pxSize * 1.15);
+          mask = 1.0 - smoothstep(strokeW, strokeW + pxSize * 1.2, d);
+        } else {
+          float d = length(rel);
+          float r = max(0.30 * size, pxSize * 1.1);
+          mask = 1.0 - smoothstep(r * 0.5, r + pxSize * 0.8, d);
+        }
+
+        float a = mask * clamp(life * 1.25, 0.0, 1.0);
+        if (a > birdAlpha) {
+          birdAlpha = a;
+          birdCol = baseCol;
+        }
+      }
+    }
+
+    col = mix(col, birdCol, birdAlpha);
+    fragColor = vec4(col, 1.0);
+  }
+  `;
+
+  const progFoam   = createProgram(FOAM_FS);
+  const progUpdate = createProgram(BIRD_UPDATE_FS);
+  const progAdvect = createProgram(ADVECT_FS);
+  const progDisplay = createProgram(DISPLAY_FS);
+
+  const texA = [createFloatTex(NX, NY), createFloatTex(NX, NY)];
+  const texB = [createFloatTex(NX, NY), createFloatTex(NX, NY)];
+  const fbo  = [createFBO(texA[0], texB[0]), createFBO(texA[1], texB[1])];
+  const foamTex = [createFloatTex(FMX, FMY), createFloatTex(FMX, FMY)];
+  const foamFbo = [createSingleFBO(foamTex[0]), createSingleFBO(foamTex[1])];
+  let cur = 0;
+  let foamCur = 0;
+
+  function uploadState(dataA, dataB) {
+    // Baseline foam initializes strictly to rho = 1.0, mx = 0.0, my = 0.0, vort = 0.0
+    const flatFoam = new Float32Array(FMX * FMY * 4);
+    for (let i = 0; i < FMX * FMY; i++) {
+      flatFoam[i * 4] = 1.0;
+    }
+    for (let i = 0; i < 2; i++) {
+      gl.bindTexture(gl.TEXTURE_2D, texA[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, NX, NY, gl.RGBA, gl.FLOAT, dataA);
+      gl.bindTexture(gl.TEXTURE_2D, texB[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, NX, NY, gl.RGBA, gl.FLOAT, dataB);
+      gl.bindTexture(gl.TEXTURE_2D, foamTex[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, FMX, FMY, gl.RGBA, gl.FLOAT, flatFoam);
+    }
+    cur = 0;
+    foamCur = 0;
+  }
+
+  function makeEmptyBuffers() {
+    return [new Float32Array(NX * NY * 4), new Float32Array(NX * NY * 4)];
+  }
+
+  function placeBird(dataA, dataB, x, y, angle, vAxial = 0.0, size = 1.0, life = 1.0, q = 0.0, vq = 0.0) {
+    const cx = ((Math.floor(x) % NX) + NX) % NX;
+    const cy = ((Math.floor(y) % NY) + NY) % NY;
+    const ox = x - Math.floor(x) - 0.5;
+    const oy = y - Math.floor(y) - 0.5;
+    const idx = (cy * NX + cx) * 4;
+    dataA[idx + 0] = ox;
+    dataA[idx + 1] = oy;
+    dataA[idx + 2] = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    dataA[idx + 3] = vAxial;
+    dataB[idx + 0] = life;
+    dataB[idx + 1] = size;
+    dataB[idx + 2] = q;
+    dataB[idx + 3] = vq;
+  }
+
+  function seedRing(dataA, dataB, centerX, centerY, radius = 3.45, count = 14) {
+    const omega = Math.PI * 2 * params.freq;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      const px = centerX + Math.cos(a) * radius;
+      const py = centerY + Math.sin(a) * radius;
+      const tangent = a + Math.PI * 0.5;
+      placeBird(dataA, dataB, px, py, tangent, 1.6, 1.0, 1.0, 0.2, omega * 0.9);
+    }
+  }
+
+  function seedPreset(kind) {
+    const [dA, dB] = makeEmptyBuffers();
+    const cx = NX * 0.5;
+    const cy = NY * 0.5;
+    const omega = Math.PI * 2 * params.freq;
+    simTime = 0;
+
+    if (kind === 'single') {
+      placeBird(dA, dB, cx + 0.5, cy + 0.5, Math.PI * 0.5, 0.0, 1.0, 1.0, 0.0, omega);
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomCenter = [cx + 0.5, cy + 0.5];
+      params.modeName = 'Test: Single Bird (flapping)';
+    } else if (kind === 'chain') {
+      for (let i = 0; i < 5; i++) {
+        placeBird(dA, dB, cx + 0.5, cy - 2.6 + i * 1.30, Math.PI * 0.5, 1.4, 1.0, 1.0, 0.2, omega * 0.9);
+      }
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomCenter = [cx + 0.5, cy + 1.0];
+      params.modeName = 'Test: Open Chain (5 birds)';
+    } else if (kind === 'ring') {
+      seedRing(dA, dB, cx, cy, 3.45, 14);
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomCenter = [cx, cy];
+      params.modeName = 'Test: Closed Ring (14)';
+    } else if (kind === 'cluster') {
+      seedRing(dA, dB, 32, 26, 3.45, 14);
+      seedRing(dA, dB, 32, 54, 3.45, 14);
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = false;
+      params.zoomCenter = [cx, cy];
+      params.modeName = 'Test: Cluster Well (Left Loops vs. Empty Right)';
+    } else if (kind === 'ring-soup') {
+      seedRing(dA, dB, cx, cy, 3.45, 14);
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.08, v => v.toFixed(2));
+      params.zoomed = false;
+      params.zoomCenter = [cx, cy];
+      params.modeName = 'Test: Closed Ring + Soup';
+    } else if (kind === 'soup') {
+      for (let y = 0; y < NY; y++) {
+        for (let x = 0; x < NX; x++) {
+          if (Math.random() < 0.18) {
+            const phi = Math.random() * Math.PI * 2;
+            placeBird(
+              dA, dB,
+              x + 0.15 + Math.random() * 0.7,
+              y + 0.15 + Math.random() * 0.7,
+              Math.random() * Math.PI * 2,
+              0.0,
+              0.8 + Math.random() * 0.4,
+              0.2 + Math.random() * 0.8,
+              Math.cos(phi),
+              omega * Math.sin(phi)
+            );
+          }
+        }
+      }
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.15, v => v.toFixed(2));
+      params.zoomed = false;
+      params.zoomCenter = [cx, cy];
+      params.modeName = 'Spontaneous Soup (10,240 cells)';
+    } else if (kind === 'headon') {
+      for (let i = 0; i < 4; i++) {
+        placeBird(dA, dB, cx - 6.0 + i * 1.30, cy + 0.15, 0.0, 1.5, 1.0, 1.0, 0.2, omega * 0.9);
+        placeBird(dA, dB, cx + 6.0 - i * 1.30, cy - 0.15, Math.PI, 1.5, 1.0, 1.0, 0.2, omega * 0.9);
+      }
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomCenter = [cx, cy];
+      params.modeName = 'Test: Head-On Bounce';
+    } else if (kind === 'clear') {
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.modeName = 'Cleared (Drag to draw)';
+    }
+
+    uploadState(dA, dB);
+    updateModeUI(kind);
+  }
+
+  function updateModeUI(activeKind) {
+    document.getElementById('mode-label').textContent = params.modeName;
+    const map = {
+      single: 'btn-single',
+      chain: 'btn-chain',
+      ring: 'btn-ring',
+      soup: 'btn-soup',
+      cluster: 'btn-cluster',
+      'ring-soup': 'btn-ring-soup',
+      headon: 'btn-headon',
+      clear: 'btn-clear'
+    };
+    for (const [k, id] of Object.entries(map)) {
+      document.getElementById(id).classList.toggle('active', k === activeKind);
+    }
+    document.getElementById('btn-zoom').classList.toggle('active', params.zoomed);
+    document.getElementById('btn-zoom').textContent = params.zoomed ? 'Zoom Out (Space)' : 'Zoom In (Space)';
+  }
+
+  function setSlider(slId, valId, key, val, fmt) {
+    params[key] = val;
+    document.getElementById(slId).value = val;
+    document.getElementById(valId).textContent = fmt(val);
+  }
+
+  function bindSlider(slId, valId, key, fmt) {
+    const el = document.getElementById(slId);
+    const valEl = document.getElementById(valId);
+    el.addEventListener('input', () => {
+      params[key] = parseFloat(el.value);
+      valEl.textContent = fmt(params[key]);
+    });
+  }
+
+  bindSlider('sl-lifespan', 'val-lifespan', 'lifespan', v => v.toFixed(1) + ' s');
+  bindSlider('sl-strokedrive', 'val-strokedrive', 'strokeDrive', v => v.toFixed(1));
+  bindSlider('sl-freq', 'val-freq', 'freq', v => v.toFixed(1) + ' Hz');
+  bindSlider('sl-spawn', 'val-spawn', 'spawn', v => v.toFixed(2));
+
+  bindSlider('sl-stiff', 'val-stiff', 'foamStiff', v => v.toFixed(1));
+  bindSlider('sl-push', 'val-push', 'birdPush', v => v.toFixed(1));
+  bindSlider('sl-drag', 'val-drag', 'foamDrag', v => v.toFixed(2));
+  bindSlider('sl-dipmob', 'val-dipmob', 'dipMobility', v => v.toFixed(2));
+
+  bindSlider('sl-psteer', 'val-psteer', 'pressSteer', v => v.toFixed(1));
+  bindSlider('sl-flowalign', 'val-flowalign', 'flowAlign', v => v.toFixed(1));
+
+  document.getElementById('chk-foam').addEventListener('change', e => params.showFoam = e.target.checked);
+  document.getElementById('chk-flow').addEventListener('change', e => params.showFlow = e.target.checked);
+  document.getElementById('chk-grid').addEventListener('change', e => params.showGrid = e.target.checked);
+
+  document.getElementById('btn-single').onclick = () => seedPreset('single');
+  document.getElementById('btn-chain').onclick = () => seedPreset('chain');
+  document.getElementById('btn-ring').onclick = () => seedPreset('ring');
+  document.getElementById('btn-soup').onclick = () => seedPreset('soup');
+  document.getElementById('btn-cluster').onclick = () => seedPreset('cluster');
+  document.getElementById('btn-ring-soup').onclick = () => seedPreset('ring-soup');
+  document.getElementById('btn-headon').onclick = () => seedPreset('headon');
+  document.getElementById('btn-clear').onclick = () => seedPreset('clear');
+  document.getElementById('btn-freeze-spawn').onclick = () => {
+    setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+  };
+
+  document.getElementById('btn-pause').onclick = () => {
+    params.paused = !params.paused;
+    document.getElementById('btn-pause').classList.toggle('active', params.paused);
+    document.getElementById('btn-pause').textContent = params.paused ? 'Resume (P)' : 'Pause (P)';
+  };
+  document.getElementById('btn-zoom').onclick = () => {
+    params.zoomed = !params.zoomed;
+    document.getElementById('btn-zoom').classList.toggle('active', params.zoomed);
+    document.getElementById('btn-zoom').textContent = params.zoomed ? 'Zoom Out (Space)' : 'Zoom In (Space)';
+  };
+
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      document.getElementById('btn-zoom').click();
+    } else if (e.key === 'p' || e.key === 'P') {
+      document.getElementById('btn-pause').click();
+    }
+  });
+
+  // --- Mouse Drawing ---
+  let mouseDown = false;
+  let mouseWorld = [NX * 0.5, NY * 0.5];
+  let prevMouseWorld = [NX * 0.5, NY * 0.5];
+  let mouseAngle = 0;
+
+  function screenToWorld(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const u = (clientX - rect.left) / rect.width;
+    const v = 1.0 - (clientY - rect.top) / rect.height;
+    const aspect = rect.width / Math.max(rect.height, 1);
+    const gridAspect = NX / NY;
+    const zoom = currentZoom;
+    let vx = NX / zoom, vy = NY / zoom;
+    if (aspect > gridAspect) vx = vy * aspect;
+    else vy = vx / aspect;
+    return [
+      params.zoomCenter[0] + (u - 0.5) * vx,
+      params.zoomCenter[1] + (v - 0.5) * vy
+    ];
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    mouseDown = true;
+    mouseWorld = screenToWorld(e.clientX, e.clientY);
+    prevMouseWorld = [...mouseWorld];
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    const next = screenToWorld(e.clientX, e.clientY);
+    if (mouseDown) {
+      const dx = next[0] - mouseWorld[0];
+      const dy = next[1] - mouseWorld[1];
+      if (dx * dx + dy * dy > 0.02) {
+        mouseAngle = Math.atan2(dy, dx);
+        prevMouseWorld = [...mouseWorld];
+        mouseWorld = next;
+      }
+    }
+  });
+  canvas.addEventListener('pointerup', () => { mouseDown = false; });
+
+  // --- Resize ---
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.floor(canvas.clientWidth * dpr);
+    const h = Math.floor(canvas.clientHeight * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function drawQuad(prog) {
+    const loc = gl.getAttribLocation(prog, 'aPos');
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  // --- Main Loop ---
+  let frameCount = 0;
+  let simTime = 0;
+  let lastT = performance.now();
+  let fpsSmooth = 60;
+  let currentZoom = 5.5;
+
+  seedPreset('ring');
+
+  function stepFoam(foamDt) {
+    const foamNext = 1 - foamCur;
+    gl.viewport(0, 0, FMX, FMY);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, foamFbo[foamNext]);
+    gl.useProgram(progFoam);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, foamTex[foamCur]);
+    gl.uniform1i(gl.getUniformLocation(progFoam, 'uFoam'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progFoam, 'uStateA'), 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, texB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progFoam, 'uStateB'), 2);
+
+    gl.uniform1f(gl.getUniformLocation(progFoam, 'uDt'), foamDt);
+    gl.uniform1f(gl.getUniformLocation(progFoam, 'uFreq'), params.freq);
+    gl.uniform1f(gl.getUniformLocation(progFoam, 'uFoamStiff'), params.foamStiff);
+    gl.uniform1f(gl.getUniformLocation(progFoam, 'uBirdPush'), params.birdPush);
+    gl.uniform1f(gl.getUniformLocation(progFoam, 'uFoamDrag'), params.foamDrag);
+    gl.uniform1f(gl.getUniformLocation(progFoam, 'uDipMobility'), params.dipMobility);
+
+    drawQuad(progFoam);
+    foamCur = foamNext;
+  }
+
+  function stepSim(birdDt) {
+    const cMaxEst = Math.sqrt(params.foamStiff * 18.0) + 4.5;
+    const foamSubsteps = Math.max(3, Math.min(8, Math.ceil((birdDt * cMaxEst) / (0.5 * 0.24))));
+    const foamDt = birdDt / foamSubsteps;
+    for (let s = 0; s < foamSubsteps; s++) {
+      stepFoam(foamDt);
+    }
+
+    const next = 1 - cur;
+
+    // Pass 1: Coupled Elastic Flapping + Foam Symmetry Breaking
+    gl.viewport(0, 0, NX, NY);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo[next]);
+    gl.useProgram(progUpdate);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uStateA'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uStateB'), 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, foamTex[foamCur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uFoam'), 2);
+
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uDt'), birdDt);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uLifespan'), params.lifespan);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uFreq'), params.freq);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uStrokeDrive'), params.strokeDrive);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uFoamStiff'), params.foamStiff);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uDipMobility'), params.dipMobility);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uPressSteer'), params.pressSteer);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uFlowAlign'), params.flowAlign);
+
+    drawQuad(progUpdate);
+
+    // Pass 2: Cell transfer + spawn + mouse paint
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo[cur]);
+    gl.useProgram(progAdvect);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texA[next]);
+    gl.uniform1i(gl.getUniformLocation(progAdvect, 'uStateA'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texB[next]);
+    gl.uniform1i(gl.getUniformLocation(progAdvect, 'uStateB'), 1);
+
+    gl.uniform1f(gl.getUniformLocation(progAdvect, 'uDt'), birdDt);
+    gl.uniform1f(gl.getUniformLocation(progAdvect, 'uFreq'), params.freq);
+    gl.uniform1f(gl.getUniformLocation(progAdvect, 'uSpawnRate'), params.spawn);
+    gl.uniform1f(gl.getUniformLocation(progAdvect, 'uFrame'), frameCount);
+    gl.uniform1f(gl.getUniformLocation(progAdvect, 'uTime'), simTime);
+    gl.uniform4f(gl.getUniformLocation(progAdvect, 'uMouse'), mouseWorld[0], mouseWorld[1], mouseDown ? 1.0 : 0.0, mouseAngle);
+    gl.uniform2f(gl.getUniformLocation(progAdvect, 'uPrevMouse'), prevMouseWorld[0], prevMouseWorld[1]);
+
+    drawQuad(progAdvect);
+    prevMouseWorld = [...mouseWorld];
+
+    frameCount++;
+    simTime += birdDt;
+  }
+
+  function render(now) {
+    resize();
+    const rawDt = Math.min((now - lastT) / 1000, 0.05);
+    lastT = now;
+    if (rawDt > 0.001) fpsSmooth = fpsSmooth * 0.92 + (1 / rawDt) * 0.08;
+
+    const targetZoom = params.zoomed ? 5.5 : 1.0;
+    currentZoom += (targetZoom - currentZoom) * Math.min(rawDt * 8.0, 1.0);
+
+    if (!params.paused) {
+      const birdDt = Math.min(rawDt, 0.033) * 0.5;
+      stepSim(birdDt);
+      stepSim(birdDt);
+    }
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(progDisplay);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplay, 'uStateA'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplay, 'uStateB'), 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, foamTex[foamCur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplay, 'uFoam'), 2);
+
+    gl.uniform2f(gl.getUniformLocation(progDisplay, 'uRes'), canvas.width, canvas.height);
+    gl.uniform1f(gl.getUniformLocation(progDisplay, 'uZoom'), currentZoom);
+    gl.uniform2f(gl.getUniformLocation(progDisplay, 'uZoomCenter'), params.zoomCenter[0], params.zoomCenter[1]);
+    gl.uniform1f(gl.getUniformLocation(progDisplay, 'uShowFoam'), params.showFoam ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplay, 'uShowFlow'), params.showFlow ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplay, 'uShowGrid'), params.showGrid ? 1.0 : 0.0);
+
+    drawQuad(progDisplay);
+
+    document.getElementById('stats-line').textContent =
+      `Time: ${simTime.toFixed(1)}s  |  FPS: ${Math.round(fpsSmooth)}  |  Zoom: ${currentZoom.toFixed(1)}×`;
+
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>
