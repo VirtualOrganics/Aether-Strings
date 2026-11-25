@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flapping Vibrations v6.0 — Stiff Viscoelastic Honest Core</title>
+<style>
+  :root {
+    --bg: #0b0e12;
+    --panel: #12171f;
+    --border: #232c3a;
+    --text: #dce4ee;
+    --muted: #8896a8;
+    --accent: #f07d32;
+    --accent2: #3dd6c6;
+    --violet: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    background: #06080b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
+  #hud {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    background: rgba(11, 14, 18, 0.84);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+    max-width: 720px;
+    overflow: hidden;
+    word-break: break-word;
+  }
+  #hud strong { color: var(--accent2); }
+  #hud .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: #b8d7f5;
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  #hud .key {
+    display: inline-block;
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #1a212d;
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--text);
+  }
+  #sidebar {
+    width: 344px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  h1 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: #fff;
+  }
+  .subtitle {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 6px;
+  }
+  .badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(61,214,198,0.35);
+    color: var(--accent2);
+    background: rgba(61,214,198,0.08);
+  }
+  .archive-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .archive-link {
+    font-size: 11px;
+    color: var(--accent2);
+    text-decoration: none;
+  }
+  .archive-link:hover { text-decoration: underline; }
+  .section {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  button {
+    background: #1b2330;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 8px;
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  button:hover { background: #243044; border-color: #3a4a63; }
+  button.active {
+    background: rgba(240, 125, 50, 0.22);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .ctrl {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .ctrl-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .ctrl-val {
+    color: var(--accent2);
+    font-family: monospace;
+    font-size: 11.5px;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .legend {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11.2px;
+    color: var(--muted);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+  <div id="canvas-wrap">
+    <canvas id="glcanvas"></canvas>
+    <div id="hud">
+      <div><strong id="mode-label">3. Pair (90° Metachronal)</strong> &nbsp;|&nbsp; Bodies: <strong>64 × 13 Peskin Markers</strong> &nbsp;|&nbsp; Stiff Elastic Grid: <strong>256 × 160</strong></div>
+      <div id="stats-line">Time: 0.0s &nbsp;|&nbsp; FPS: 60 &nbsp;|&nbsp; c_p / c_s: 9.0 / 4.6 &nbsp;|&nbsp; De: 60 &nbsp;|&nbsp; Zoom: 3.0×</div>
+      <div id="cons-line" class="mono">Conservation: initializing...</div>
+      <div style="margin-top:4px;color:#9aa8ba;">
+        <span class="key">Space</span> Toggle Zoom &nbsp;
+        <span class="key">P</span> Pause &nbsp;
+        <span class="key">Click/Drag</span> Place resting cos(&pi;u) body
+      </div>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div>
+      <h1>Flapping Vibrations v6.0</h1>
+      <div class="subtitle">Stiff Nonlinear Viscoelastic Solid-Foam &amp; Exact Two-Way Immersed Bodies</div>
+      <div class="badge-row">
+        <span class="badge">Zero Perception C1–C10</span>
+        <span class="badge">Exact ΔP_body = −ΔP_med</span>
+        <span class="badge">Jaumann Elastic Shear G</span>
+      </div>
+      <div class="archive-links">
+        <a class="archive-link" href="v5.1-ablations.html">v5.1 Ablations &rarr;</a>
+        <a class="archive-link" href="v5.1.html">v5.1 &rarr;</a>
+        <a class="archive-link" href="v5.0.html">v5.0 &rarr;</a>
+        <a class="archive-link" href="v4.4.html">v4.4 &rarr;</a>
+        <a class="archive-link" href="v3.html">v3.0 &rarr;</a>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">First-Principles Test Bench (All Start V = 0)</div>
+      <div class="btn-grid">
+        <button id="btn-single">1. Single cos(&pi;u)</button>
+        <button id="btn-pair-0">2. Pair (0&deg; In-Phase)</button>
+        <button id="btn-pair-90" class="active">3. Pair (90&deg; Wave)</button>
+        <button id="btn-chain-wave">4. Chain (5 Wave)</button>
+        <button id="btn-chain-kick">5. Chain + Side Kick</button>
+        <button id="btn-ring">6. Closed Ring (12)</button>
+        <button id="btn-soup">7. Random Soup (32)</button>
+        <button id="btn-clear">Clear Arena</button>
+        <button id="btn-pause">Pause (P)</button>
+        <button id="btn-zoom" class="active">Zoom Out (Space)</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Stiff Nonlinear Elastic Medium (Unanchored)</div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>Bulk Stiffness (K)</span><span class="ctrl-val" id="val-k">90.0</span></div>
+        <input type="range" id="sl-k" min="15" max="180" step="1" value="90.0" />
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>Elastic Shear Stiffness (G)</span><span class="ctrl-val" id="val-g">32.0</span></div>
+        <input type="range" id="sl-g" min="0" max="80" step="1" value="32.0" />
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>Compression Hardening (&beta;)</span><span class="ctrl-val" id="val-hard">18.0</span></div>
+        <input type="range" id="sl-hard" min="0" max="40" step="1" value="18.0" />
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>Stress Relaxation (1/&tau;_M, 0=Solid)</span><span class="ctrl-val" id="val-relax">0.25 s⁻¹</span></div>
+        <input type="range" id="sl-relax" min="0.0" max="6.0" step="0.05" value="0.25" />
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>Elastic Yield Stress (&tau;_yield)</span><span class="ctrl-val" id="val-yield">8.0</span></div>
+        <input type="range" id="sl-yield" min="2.0" max="60.0" step="1.0" value="8.0" />
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>Internal Shear Viscosity (&nu;)</span><span class="ctrl-val" id="val-visc">0.08</span></div>
+        <input type="range" id="sl-visc" min="0.01" max="0.50" step="0.01" value="0.08" />
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>Rest Mass Density (&rho;₀)</span><span class="ctrl-val" id="val-rho">1.50</span></div>
+        <input type="range" id="sl-rho" min="0.50" max="4.00" step="0.10" value="1.50" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">cos(&pi;u) / sin(&pi;u) Two-Way Immersed Body</div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>Flap Frequency (f)</span><span class="ctrl-val" id="val-freq">2.4 Hz</span></div>
+        <input type="range" id="sl-freq" min="0.6" max="4.5" step="0.1" value="2.4" />
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>Stroke Amplitude (A)</span><span class="ctrl-val" id="val-amp">0.46</span></div>
+        <input type="range" id="sl-amp" min="0.10" max="0.80" step="0.02" value="0.46" />
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>Body Mass (m)</span><span class="ctrl-val" id="val-mass">2.0</span></div>
+        <input type="range" id="sl-mass" min="0.4" max="8.0" step="0.2" value="2.0" />
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>No-Slip Coupling (&alpha;)</span><span class="ctrl-val" id="val-alpha">0.72</span></div>
+        <input type="range" id="sl-alpha" min="0.10" max="0.95" step="0.02" value="0.72" />
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>Medium Load &rarr; Phase Sync</span><span class="ctrl-val" id="val-load">0.65</span></div>
+        <input type="range" id="sl-load" min="0.00" max="2.50" step="0.05" value="0.65" />
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-head"><span>Medium Load &rarr; sin(&pi;u) Twist</span><span class="ctrl-val" id="val-twist">0.90</span></div>
+        <input type="range" id="sl-twist" min="0.00" max="2.50" step="0.05" value="0.90" />
+      </div>
+      <label class="toggle-row" style="margin-top:2px;">
+        <span>Radiative Survival (Subcritical Decay)</span>
+        <input type="checkbox" id="chk-rad" />
+      </label>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Display Overlays</div>
+      <label class="toggle-row">
+        <span>Compression / Tension (&delta;&rho;)</span>
+        <input type="checkbox" id="chk-strain" checked />
+      </label>
+      <label class="toggle-row">
+        <span>Elastic Shear Stress (|&tau;_el|)</span>
+        <input type="checkbox" id="chk-shear" checked />
+      </label>
+      <label class="toggle-row">
+        <span>Vorticity / Curl (&nabla;&times;v)</span>
+        <input type="checkbox" id="chk-curl" checked />
+      </label>
+      <label class="toggle-row">
+        <span>World Grid (zoomed)</span>
+        <input type="checkbox" id="chk-grid" checked />
+      </label>
+      <div class="legend" style="margin-top:4px;">
+        <div class="legend-item"><span class="swatch" style="background:#f58a34;"></span>Compressed stiff wall (&delta;&rho; &gt; 0, cubic hardening)</div>
+        <div class="legend-item"><span class="swatch" style="background:#2e84ff;"></span>Stretched tension pocket (&delta;&rho; &lt; 0)</div>
+        <div class="legend-item"><span class="swatch" style="background:#a78bfa;"></span>Stored elastic shear stress (|&tau;_el|, stiff S-waves)</div>
+        <div class="legend-item"><span class="swatch" style="background:#3dd6c6;"></span>cos(&pi;u)+sin(&pi;u) body (dots = u = &plusmn;0.5 nodes)</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const MAX_BODIES = 64;
+  const NUM_MARKERS = 13; // 13 DFT span points (ds ~ 0.192 < H = 0.25 -> zero leak-through)
+  const NX = 256;
+  const NY = 160;
+  const H = 0.25;
+  const WORLD_W = NX * H; // 64.0
+  const WORLD_H = NY * H; // 40.0
+
+  const canvas = document.getElementById('glcanvas');
+  const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
+  if (!gl) { alert('WebGL2 is required.'); return; }
+  const extFloat = gl.getExtension('EXT_color_buffer_float');
+  if (!extFloat) { alert('EXT_color_buffer_float is required.'); return; }
+  const extFloatBlend = gl.getExtension('EXT_float_blend');
+
+  const params = {
+    bulkK: 90.0,
+    shearG: 32.0,
+    hardening: 18.0,
+    relaxRate: 0.25,     // 1 / tau_M (0 = pure stiff elastic solid; 0.25 => De ~ 60 at 2.4 Hz!)
+    yieldStress: 8.0,    // Von Mises jammed-foam elastic yield threshold (stiff everywhere below yield!)
+    viscosity: 0.08,     // momentum-conserving internal shear viscosity
+    rho0: 1.50,
+    freq: 2.4,
+    waveAmp: 0.46,
+    bodyMass: 2.0,
+    couplingAlpha: 0.72,
+    loadSync: 0.65,
+    twistLoad: 0.90,
+    radSurvival: false,
+    showStrain: true,
+    showShear: true,
+    showCurl: true,
+    showGrid: true,
+    paused: false,
+    zoomed: true,
+    zoomLevel: 3.0,
+    zoomCenter: [WORLD_W * 0.5, WORLD_H * 0.5],
+    modeName: '3. Pair (90° Wave)',
+    activePreset: 'pair-90'
+  };
+
+  function compileShader(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error(src);
+      throw new Error(gl.getShaderInfoLog(s));
+    }
+    return s;
+  }
+
+  function createProgram(vsSrc, fsSrc) {
+    const p = gl.createProgram();
+    gl.attachShader(p, compileShader(gl.VERTEX_SHADER, vsSrc));
+    gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fsSrc));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      throw new Error(gl.getProgramInfoLog(p));
+    }
+    return p;
+  }
+
+  function createFloatTex(w, h, useHalf = false) {
+    const t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texImage2D(
+      gl.TEXTURE_2D, 0,
+      useHalf ? gl.RGBA16F : gl.RGBA32F,
+      w, h, 0, gl.RGBA,
+      useHalf ? gl.HALF_FLOAT : gl.FLOAT,
+      null
+    );
+    return t;
+  }
+
+  function createFBO(textures) {
+    const f = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+    const bufs = [];
+    textures.forEach((tex, i) => {
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, tex, 0);
+      bufs.push(gl.COLOR_ATTACHMENT0 + i);
+    });
+    gl.drawBuffers(bufs);
+    const st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    if (st !== gl.FRAMEBUFFER_COMPLETE) throw new Error('Incomplete FBO: ' + st);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return f;
+  }
+
+  const quadBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+  const QUAD_VS = `#version 300 es
+  in vec2 aPos;
+  out vec2 vUV;
+  void main() {
+    vUV = aPos * 0.5 + 0.5;
+    gl_Position = vec4(aPos, 0.0, 1.0);
+  }`;
+
+  const COMMON_GLSL = `
+  const int MAX_BODIES = ${MAX_BODIES};
+  const int NUM_MARKERS = ${NUM_MARKERS};
+  const int NX = ${NX};
+  const int NY = ${NY};
+  const float H = ${H.toFixed(4)};
+  const vec2 WORLD = vec2(${WORLD_W.toFixed(2)}, ${WORLD_H.toFixed(2)});
+  const float PI = 3.14159265359;
+  const float TAU = 6.28318530718;
+
+  ivec2 wrapCell(ivec2 c) {
+    return ivec2((c.x % NX + NX) % NX, (c.y % NY + NY) % NY);
+  }
+  vec2 wrapPos(vec2 p) {
+    return mod(mod(p, WORLD) + WORLD, WORLD);
+  }
+  vec2 wrapDelta(vec2 d) {
+    if (d.x >  WORLD.x * 0.5) d.x -= WORLD.x;
+    if (d.x < -WORLD.x * 0.5) d.x += WORLD.x;
+    if (d.y >  WORLD.y * 0.5) d.y -= WORLD.y;
+    if (d.y < -WORLD.y * 0.5) d.y += WORLD.y;
+    return d;
+  }
+
+  // Exact zero-mean symmetric cosine basis & orthogonal antisymmetric sine basis
+  // Strictly zero static camber -> exact fore-aft parity + half-period symmetry!
+  float phiS(float u) { return cos(PI * u); }
+  float phiA(float u) { return sin(PI * u); }
+
+  // Peskin 4-point cosine kernel: exact partition of unity sum_{i=0..3} phi4(r_i) === 1.0
+  float phi4(float r) {
+    float ar = abs(r);
+    if (ar >= 2.0) return 0.0;
+    return 0.25 * (1.0 + cos(0.5 * PI * ar));
+  }
+
+  // Nonlinear stiff elastic pressure P(rho) with cubic compression hardening wall
+  float elasticPressure(float rho, float rho0, float bulkK, float betaHard) {
+    float d = clamp((rho - rho0) / max(rho0, 0.1), -0.82, 2.0);
+    if (d >= 0.0) {
+      return bulkK * (d + 2.5 * d * d + betaHard * d * d * d);
+    }
+    return bulkK * 0.85 * d;
+  }
+
+  // Local longitudinal P-wave speed c_p = sqrt((dP/drho + G/rho))
+  float localWaveSpeed(float rho, float rho0, float bulkK, float shearG, float betaHard) {
+    float rSafe = max(rho, 0.20 * rho0);
+    float d = clamp((rho - rho0) / max(rho0, 0.1), -0.82, 2.0);
+    float dPdd = (d >= 0.0) ? bulkK * (1.0 + 5.0 * d + 3.0 * betaHard * d * d) : bulkK * 0.85;
+    float dPdrho = dPdd / max(rho0, 0.1);
+    return sqrt(max(dPdrho + shearG / rSafe, 0.25));
+  }
+
+  vec2 safeVel(vec4 medA, float rho0) {
+    float rho = max(medA.r, 0.18 * rho0);
+    return medA.gb / rho;
+  }
+  `;
+
+  // --- PASS A: Exact Marker Impulse Computation (MAX_BODIES x NUM_MARKERS) ---
+  // Outputs:
+  //   outImpA = (Jx, Jy, rx, ry)   (exact momentum impulse marker -> medium, lever arm r_k)
+  //   outImpB = (xk.x, xk.y, work_k, u_k)
+  const MARKER_IMPULSE_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uBodyA; // (pos.x, pos.y, vel.x, vel.y)
+  uniform sampler2D uBodyB; // (angle, omega, alive_or_amp, size)
+  uniform sampler2D uBodyC; // (qs, vqs, qa, vqa)
+  uniform sampler2D uMedA;  // (rho, mx, my, aux)
+  uniform float uRho0;
+  uniform float uWaveAmp;
+  uniform float uBodyMass;
+  uniform float uAlpha;
+
+  layout(location = 0) out vec4 outImpA;
+  layout(location = 1) out vec4 outImpB;
+
+  ${COMMON_GLSL}
+
+  void main() {
+    int bi = int(floor(gl_FragCoord.x));
+    int mk = int(floor(gl_FragCoord.y));
+
+    vec4 bA = texelFetch(uBodyA, ivec2(bi, 0), 0);
+    vec4 bB = texelFetch(uBodyB, ivec2(bi, 0), 0);
+    vec4 bC = texelFetch(uBodyC, ivec2(bi, 0), 0);
+
+    float alive = bB.b;
+    if (alive <= 0.01) {
+      outImpA = vec4(0.0);
+      outImpB = vec4(0.0);
+      return;
+    }
+
+    vec2 pos = bA.rg;
+    vec2 vel = bA.ba;
+    float angle = bB.r;
+    float omegaBody = bB.g;
+    float size = bB.a;
+    float qs = bC.r;
+    float vqs = bC.g;
+    float qa = bC.b;
+    float vqa = bC.a;
+
+    vec2 dir = vec2(cos(angle), sin(angle));
+    vec2 perp = vec2(-dir.y, dir.x);
+    float L = 1.25 * size;
+
+    // Exact uniform 13-point DFT spacing on (-1, +1) -> exact discrete zero-mean & orthogonality!
+    float u = (float(mk) - 0.5 * float(NUM_MARKERS - 1)) * (2.0 / float(NUM_MARKERS));
+    float ps = phiS(u);
+    float pa = phiA(u);
+
+    float yOff = uWaveAmp * size * (qs * ps + qa * pa);
+    float yDot = uWaveAmp * size * (vqs * ps + vqa * pa);
+
+    vec2 rk = perp * (u * L) + dir * yOff;
+    vec2 xk = wrapPos(pos + rk);
+
+    // Exact material velocity of marker k: rigid translation + rigid rotation + modal deformation
+    vec2 uBodyK = vel + vec2(-rk.y, rk.x) * omegaBody + dir * yDot;
+
+    // Sample medium velocity & density at xk using exact 4x4 Peskin cosine kernel
+    vec2 gPos = xk / H - 0.5;
+    ivec2 bCell = ivec2(floor(gPos));
+    vec2 uMedK = vec2(0.0);
+    float rhoMedK = 0.0;
+    for (int dy = -1; dy <= 2; dy++) {
+      float wy = phi4(float(bCell.y + dy) - gPos.y);
+      for (int dx = -1; dx <= 2; dx++) {
+        float wx = phi4(float(bCell.x + dx) - gPos.x);
+        float w = wx * wy;
+        vec4 mA = texelFetch(uMedA, wrapCell(bCell + ivec2(dx, dy)), 0);
+        float rCell = max(mA.r, 0.18 * uRho0);
+        uMedK += w * (mA.gb / rCell);
+        rhoMedK += w * rCell;
+      }
+    }
+
+    // Semi-implicit reduced-mass impulse exchange (unconditionally stable, exact Newton's 3rd law!)
+    float ds = (2.0 * L) / float(NUM_MARKERS);
+    float mFluidK = rhoMedK * H * max(ds, H);
+    float mBodyK  = (uBodyMass * size * size) / float(NUM_MARKERS);
+    float mRedK   = (mBodyK * mFluidK) / max(mBodyK + mFluidK, 1e-4);
+
+    vec2 Jk = (uAlpha * mRedK) * (uBodyK - uMedK);
+    float workK = dot(Jk, uBodyK);
+
+    outImpA = vec4(Jk, rk);
+    outImpB = vec4(xk, workK, u);
+  }`;
+
+  // --- PASS B: Exact Partition-of-Unity P2G Impulse Splat (additive onto NX x NY) ---
+  const P2G_IMPULSE_VS = `#version 300 es
+  in vec2 aQuad; // [-1, 1]
+  uniform sampler2D uImpA;
+  uniform sampler2D uImpB;
+
+  flat out vec2 vJ;
+  flat out vec2 vGPos;
+
+  ${COMMON_GLSL}
+
+  void main() {
+    int totalMarkers = MAX_BODIES * NUM_MARKERS;
+    int tileId = gl_InstanceID / totalMarkers;
+    int mIdx   = gl_InstanceID - tileId * totalMarkers;
+    int bi     = mIdx / NUM_MARKERS;
+    int mk     = mIdx - bi * NUM_MARKERS;
+    int tx     = (tileId % 3) - 1;
+    int ty     = (tileId / 3) - 1;
+
+    vec4 iA = texelFetch(uImpA, ivec2(bi, mk), 0);
+    vec4 iB = texelFetch(uImpB, ivec2(bi, mk), 0);
+    vec2 J = iA.rg;
+    if (dot(J, J) < 1e-14) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+
+    vec2 xk = iB.rg + vec2(float(tx), float(ty)) * WORLD;
+    vec2 gPos = xk / H - 0.5;
+    vec2 bCell = floor(gPos);
+    vec2 cMin = bCell - vec2(1.0);
+    vec2 cMax = bCell + vec2(3.0); // covers exact 4x4 texels [bx-1..bx+2] x [by-1..by+2]
+
+    if (cMax.x < 0.0 || cMin.x > float(NX) || cMax.y < 0.0 || cMin.y > float(NY)) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+
+    vec2 pGrid = mix(cMin, cMax, aQuad * 0.5 + 0.5);
+    vJ = J;
+    vGPos = gPos;
+    gl_Position = vec4((pGrid / vec2(float(NX), float(NY))) * 2.0 - 1.0, 0.0, 1.0);
+  }`;
+
+  const P2G_IMPULSE_FS = `#version 300 es
+  precision highp float;
+  flat in vec2 vJ;
+  flat in vec2 vGPos;
+  out vec4 outDeltaMom;
+
+  ${COMMON_GLSL}
+
+  void main() {
+    vec2 cell = floor(gl_FragCoord.xy);
+    float wx = phi4(cell.x - vGPos.x);
+    float wy = phi4(cell.y - vGPos.y);
+    float w = wx * wy;
+    if (w <= 0.0) discard;
+    // Exact momentum density increment dm = (w * J) / H^2 -> sum(dm * H^2) === J identically!
+    outDeltaMom = vec4((vJ * w) / (H * H), 0.0, 0.0);
+  }`;
+
+  // --- PASS C: Rigid + Modal Body Update (MAX_BODIES x 1) — ZERO Perception Crutches ---
+  const BODY_UPDATE_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uBodyA;
+  uniform sampler2D uBodyB;
+  uniform sampler2D uBodyC;
+  uniform sampler2D uImpA;
+  uniform sampler2D uImpB;
+  uniform float uDt;
+  uniform float uFreq;
+  uniform float uWaveAmp;
+  uniform float uBodyMass;
+  uniform float uLoadSync;
+  uniform float uTwistLoad;
+  uniform float uRadSurvival;
+
+  layout(location = 0) out vec4 outA; // (pos.x, pos.y, vel.x, vel.y)
+  layout(location = 1) out vec4 outB; // (angle, omega, alive, size)
+  layout(location = 2) out vec4 outC; // (qs, vqs, qa, vqa)
+
+  ${COMMON_GLSL}
+
+  void main() {
+    int bi = int(floor(gl_FragCoord.x));
+    vec4 bA = texelFetch(uBodyA, ivec2(bi, 0), 0);
+    vec4 bB = texelFetch(uBodyB, ivec2(bi, 0), 0);
+    vec4 bC = texelFetch(uBodyC, ivec2(bi, 0), 0);
+
+    float alive = bB.b;
+    if (alive <= 0.01) {
+      outA = vec4(0.0);
+      outB = vec4(0.0);
+      outC = vec4(0.0);
+      return;
+    }
+
+    vec2 pos = bA.rg;
+    vec2 vel = bA.ba;
+    float angle = bB.r;
+    float omegaBody = bB.g;
+    float size = bB.a;
+    float qs = bC.r;
+    float vqs = bC.g;
+    float qa = bC.b;
+    float vqa = bC.a;
+
+    vec2 dir = vec2(cos(angle), sin(angle));
+    float L = 1.25 * size;
+    float mass = uBodyMass * size * size;
+    // Exact thin-rod moment of inertia I = (1/3) m L^2
+    float inertia = (1.0 / 3.0) * mass * L * L;
+
+    // 1) Sum exact opposite impulses -J_k from the 13 immersed markers
+    vec2 sumJ = vec2(0.0);
+    float sumTorqueJ = 0.0;
+    float Qs = 0.0;
+    float Qa = 0.0;
+    float normS = 0.0;
+    float normA = 0.0;
+
+    for (int mk = 0; mk < NUM_MARKERS; mk++) {
+      vec4 iA = texelFetch(uImpA, ivec2(bi, mk), 0);
+      vec4 iB = texelFetch(uImpB, ivec2(bi, mk), 0);
+      vec2 Jk = iA.rg;
+      vec2 rk = iA.ba;
+      float u = iB.a;
+
+      sumJ += Jk;
+      sumTorqueJ += rk.x * Jk.y - rk.y * Jk.x;
+
+      float ps = phiS(u);
+      float pa = phiA(u);
+      float fMedAx = -dot(Jk, dir) / max(uDt, 1e-5);
+      Qs += fMedAx * ps;
+      Qa += fMedAx * pa;
+      normS += ps * ps;
+      normA += pa * pa;
+    }
+
+    // Exact Newton's 3rd Law rigid-body recoil
+    vel       -= sumJ / mass;
+    omegaBody -= sumTorqueJ / inertia;
+
+    // 2) Short-range purely elastic pairwise Hertzian solid contact (F_ij = -F_ji -> exact momentum conservation!)
+    // ZERO perception: strictly overlap contact only when two physical bodies collide.
+    vec2 fContact = vec2(0.0);
+    for (int j = 0; j < MAX_BODIES; j++) {
+      if (j == bi) continue;
+      vec4 jB = texelFetch(uBodyB, ivec2(j, 0), 0);
+      if (jB.b <= 0.01) continue;
+      vec4 jA = texelFetch(uBodyA, ivec2(j, 0), 0);
+      vec2 d = wrapDelta(pos - jA.rg);
+      float dist = length(d);
+      float rMin = 0.72 * (size + jB.a);
+      if (dist > 1e-4 && dist < rMin) {
+        vec2 n = d / dist;
+        float pen = rMin - dist;
+        // Pure conservative spring + symmetric pairwise normal damping
+        vec2 vRel = vel - jA.ba;
+        float vn = dot(vRel, n);
+        float fMag = 65.0 * pen - 2.2 * min(vn, 0.0);
+        fContact += n * fMag;
+      }
+    }
+    vel += (fContact / mass) * uDt;
+
+    // 3) Integrate rigid body kinematics (no rails, no clamps, full 2D velocity)
+    pos = wrapPos(pos + vel * uDt);
+    angle = mod(angle + omegaBody * uDt + TAU, TAU);
+
+    // 4) Modal oscillators driven by REAL generalized medium forces (Qs, Qa) — zero Kuramoto!
+    float omega0 = TAU * uFreq;
+    float mMode = max(0.35 * mass * uWaveAmp * size, 0.12);
+    float qNormS = (Qs / max(normS, 0.5)) / mMode;
+    float qNormA = (Qa / max(normA, 0.5)) / mMode;
+
+    float r2S = qs * qs + (vqs / max(omega0, 0.5)) * (vqs / max(omega0, 0.5));
+    float vdpGain = (uRadSurvival > 0.5)
+      ? (-0.45 * omega0 + 0.95 * omega0 * r2S - 0.55 * omega0 * r2S * r2S) // subcritical radiative decay alone!
+      : (1.8 * omega0 * (1.0 - r2S));                                       // clean limit cycle
+    float aqs = -omega0 * omega0 * qs + vdpGain * vqs + uLoadSync * clamp(qNormS, -40.0, 40.0);
+    vqs += aqs * uDt;
+    qs  += vqs * uDt;
+    // Soft harmonic safety envelope only at unphysical amplitude > 1.8
+    float ampS = sqrt(qs * qs + (vqs / max(omega0, 0.5)) * (vqs / max(omega0, 0.5)));
+    if (ampS > 1.8) {
+      qs  *= 1.8 / ampS;
+      vqs *= 1.8 / ampS;
+    }
+
+    // Passively damped orthogonal sin(pi*u) twist mode excited solely by asymmetric medium load Qa
+    float aqa = -omega0 * omega0 * qa - (2.0 * 0.18 * omega0) * vqa + uTwistLoad * clamp(qNormA, -40.0, 40.0);
+    vqa += aqa * uDt;
+    qa  += vqa * uDt;
+    float ampA = sqrt(qa * qa + (vqa / max(omega0, 0.5)) * (vqa / max(omega0, 0.5)));
+    if (ampA > 1.2) {
+      qa  *= 1.2 / ampA;
+      vqa *= 1.2 / ampA;
+    }
+
+    outA = vec4(pos, vel);
+    outB = vec4(angle, omegaBody, alive, size);
+    outC = vec4(qs, vqs, qa, vqa);
+  }`;
+
+  // --- PASS D: Exact Conservative Finite-Volume Stiff Jaumann-Maxwell Elastic Medium ---
+  // medA = (rho, mx, my, aux)
+  // medB = (tau1, tau2, curlV, dRho)
+  // ZERO on-site anchor spring, ZERO frame drag -> exact total mass & momentum conservation!
+  const MEDIUM_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uMedA;
+  uniform sampler2D uMedB;
+  uniform sampler2D uImpTex;
+  uniform float uDt;
+  uniform float uBulkK;
+  uniform float uShearG;
+  uniform float uHardening;
+  uniform float uRelaxRate;
+  uniform float uYieldStress;
+  uniform float uVisc;
+  uniform float uRho0;
+  uniform float uApplyImp;
+
+  layout(location = 0) out vec4 outMedA;
+  layout(location = 1) out vec4 outMedB;
+
+  ${COMMON_GLSL}
+
+  // Exact symmetric face flux across X-face between L and R
+  // Returns vec3(F_rho, F_mx, F_my)
+  vec3 fluxX(
+    vec4 mAL, vec4 mAR, vec4 mBL, vec4 mBR,
+    vec2 vLU, vec2 vLD, vec2 vRU, vec2 vRD
+  ) {
+    vec2 vL = safeVel(mAL, uRho0);
+    vec2 vR = safeVel(mAR, uRho0);
+    float pL = elasticPressure(mAL.r, uRho0, uBulkK, uHardening);
+    float pR = elasticPressure(mAR.r, uRho0, uBulkK, uHardening);
+
+    // Physical advective + elastic stress flux on L and R
+    vec3 fL = vec3(
+      mAL.g,
+      mAL.g * vL.x + pL - mBL.r,
+      mAL.b * vL.x - mBL.g
+    );
+    vec3 fR = vec3(
+      mAR.g,
+      mAR.g * vR.x + pR - mBR.r,
+      mAR.b * vR.x - mBR.g
+    );
+
+    // Momentum-conserving internal viscous stress evaluated symmetrically on face
+    float dvx_dx = (vR.x - vL.x) / H;
+    float dvy_dx = (vR.y - vL.y) / H;
+    float dvy_dy = 0.25 * ((vLU.y - vLD.y) + (vRU.y - vRD.y)) / H;
+    float dvx_dy = 0.25 * ((vLU.x - vLD.x) + (vRU.x - vRD.x)) / H;
+    float divV = dvx_dx + dvy_dy;
+    float nuB = uVisc * 1.8;
+    float nuS = uVisc;
+    float visc_xx = nuB * divV + nuS * (dvx_dx - dvy_dy);
+    float visc_yx = nuS * (dvy_dx + dvx_dy);
+
+    // Conservative Rusanov numerical flux stabilization (cancels identically across shared faces!)
+    float cL = localWaveSpeed(mAL.r, uRho0, uBulkK, uShearG, uHardening);
+    float cR = localWaveSpeed(mAR.r, uRho0, uBulkK, uShearG, uHardening);
+    float aFace = max(abs(vL.x) + cL, abs(vR.x) + cR);
+
+    vec3 dU = mAR.rgb - mAL.rgb;
+    vec3 diss = vec3(0.28, 0.35, 0.22) * (0.5 * aFace) * dU;
+    return 0.5 * (fL + fR) - vec3(0.0, visc_xx, visc_yx) - diss;
+  }
+
+  // Exact symmetric face flux across Y-face between D and U
+  vec3 fluxY(
+    vec4 mAD, vec4 mAU, vec4 mBD, vec4 mBU,
+    vec2 vDR, vec2 vDL, vec2 vUR, vec2 vUL
+  ) {
+    vec2 vD = safeVel(mAD, uRho0);
+    vec2 vU = safeVel(mAU, uRho0);
+    float pD = elasticPressure(mAD.r, uRho0, uBulkK, uHardening);
+    float pU = elasticPressure(mAU.r, uRho0, uBulkK, uHardening);
+
+    vec3 gD = vec3(
+      mAD.b,
+      mAD.g * vD.y - mBD.g,
+      mAD.b * vD.y + pD + mBD.r
+    );
+    vec3 gU = vec3(
+      mAU.b,
+      mAU.g * vU.y - mBU.g,
+      mAU.b * vU.y + pU + mBU.r
+    );
+
+    float dvy_dy = (vU.y - vD.y) / H;
+    float dvx_dy = (vU.x - vD.x) / H;
+    float dvx_dx = 0.25 * ((vDR.x - vDL.x) + (vUR.x - vUL.x)) / H;
+    float dvy_dx = 0.25 * ((vDR.y - vDL.y) + (vUR.y - vUL.y)) / H;
+    float divV = dvx_dx + dvy_dy;
+    float nuB = uVisc * 1.8;
+    float nuS = uVisc;
+    float visc_yy = nuB * divV + nuS * (dvy_dy - dvx_dx);
+    float visc_xy = nuS * (dvx_dy + dvy_dx);
+
+    float cD = localWaveSpeed(mAD.r, uRho0, uBulkK, uShearG, uHardening);
+    float cU = localWaveSpeed(mAU.r, uRho0, uBulkK, uShearG, uHardening);
+    float aFace = max(abs(vD.y) + cD, abs(vU.y) + cU);
+
+    vec3 dU = mAU.rgb - mAD.rgb;
+    vec3 diss = vec3(0.28, 0.22, 0.35) * (0.5 * aFace) * dU;
+    return 0.5 * (gD + gU) - vec3(0.0, visc_xy, visc_yy) - diss;
+  }
+
+  void main() {
+    ivec2 c = ivec2(floor(gl_FragCoord.xy));
+
+    vec4 mAC  = texelFetch(uMedA, c, 0);
+    vec4 mAPX = texelFetch(uMedA, wrapCell(c + ivec2( 1,  0)), 0);
+    vec4 mANX = texelFetch(uMedA, wrapCell(c + ivec2(-1,  0)), 0);
+    vec4 mAPY = texelFetch(uMedA, wrapCell(c + ivec2( 0,  1)), 0);
+    vec4 mANY = texelFetch(uMedA, wrapCell(c + ivec2( 0, -1)), 0);
+    vec4 mAPP = texelFetch(uMedA, wrapCell(c + ivec2( 1,  1)), 0);
+    vec4 mAPN = texelFetch(uMedA, wrapCell(c + ivec2( 1, -1)), 0);
+    vec4 mANP = texelFetch(uMedA, wrapCell(c + ivec2(-1,  1)), 0);
+    vec4 mANN = texelFetch(uMedA, wrapCell(c + ivec2(-1, -1)), 0);
+
+    vec4 mBC  = texelFetch(uMedB, c, 0);
+    vec4 mBPX = texelFetch(uMedB, wrapCell(c + ivec2( 1,  0)), 0);
+    vec4 mBNX = texelFetch(uMedB, wrapCell(c + ivec2(-1,  0)), 0);
+    vec4 mBPY = texelFetch(uMedB, wrapCell(c + ivec2( 0,  1)), 0);
+    vec4 mBNY = texelFetch(uMedB, wrapCell(c + ivec2( 0, -1)), 0);
+
+    vec2 vC  = safeVel(mAC,  uRho0);
+    vec2 vPX = safeVel(mAPX, uRho0);
+    vec2 vNX = safeVel(mANX, uRho0);
+    vec2 vPY = safeVel(mAPY, uRho0);
+    vec2 vNY = safeVel(mANY, uRho0);
+    vec2 vPP = safeVel(mAPP, uRho0);
+    vec2 vPN = safeVel(mAPN, uRho0);
+    vec2 vNP = safeVel(mANP, uRho0);
+    vec2 vNN = safeVel(mANN, uRho0);
+
+    // 1) Conservative finite-volume mass & momentum update
+    vec3 fPX = fluxX(mAC,  mAPX, mBC,  mBPX, vPY, vNY, vPP, vPN);
+    vec3 fNX = fluxX(mANX, mAC,  mBNX, mBC,  vNP, vNN, vPY, vNY);
+    vec3 gPY = fluxY(mAC,  mAPY, mBC,  mBPY, vPX, vNX, vPP, vNP);
+    vec3 gNY = fluxY(mANY, mAC,  mBNY, mBC,  vPN, vNN, vPX, vNX);
+
+    vec3 Unew = mAC.rgb - (uDt / H) * ((fPX - fNX) + (gPY - gNY));
+
+    // Add exact equal-and-opposite immersed-body momentum impulse
+    if (uApplyImp > 0.5) {
+      vec2 dm = texelFetch(uImpTex, c, 0).rg;
+      Unew.gb += dm;
+    }
+
+    // 2) Objective Jaumann-Corotational Maxwell Elastic Shear Stress (tau1, tau2)
+    float dvx_dx = (vPX.x - vNX.x) / (2.0 * H);
+    float dvy_dy = (vPY.y - vNY.y) / (2.0 * H);
+    float dvy_dx = (vPX.y - vNX.y) / (2.0 * H);
+    float dvx_dy = (vPY.x - vNY.x) / (2.0 * H);
+
+    float D1 = 0.5 * (dvx_dx - dvy_dy);
+    float D2 = 0.5 * (dvy_dx + dvx_dy);
+    float curlV = dvy_dx - dvx_dy;
+
+    // First-order conservative upwind advection of elastic stress tensor
+    vec2 tauC = mBC.rg;
+    vec2 dTauDx = (vC.x >= 0.0) ? (tauC - mBNX.rg) : (mBPX.rg - tauC);
+    vec2 dTauDy = (vC.y >= 0.0) ? (tauC - mBNY.rg) : (mBPY.rg - tauC);
+    vec2 tauAdv = tauC - (uDt / H) * (vC.x * dTauDx + vC.y * dTauDy);
+
+    // Exact analytical Jaumann corotation by curlV * dt (frame-objective at arbitrary rotations!)
+    float angJ = curlV * uDt;
+    float cJ = cos(angJ), sJ = sin(angJ);
+    vec2 tauRot = vec2(tauAdv.x * cJ - tauAdv.y * sJ, tauAdv.x * sJ + tauAdv.y * cJ);
+
+    // Elastic shear increment 2*G*D_dev + tiny stress diffusion for grid smoothness
+    vec2 lapTau = (mBPX.rg + mBNX.rg + mBPY.rg + mBNY.rg - 4.0 * tauC) / (H * H);
+    vec2 tauInc = tauRot + uDt * (2.0 * uShearG * vec2(D1, D2) + 0.012 * lapTau);
+
+    // Maxwell relaxation + smooth Von Mises jammed-foam yield when |tau| > tau_yield
+    // Below tau_yield: rock-stiff elastic solid; above tau_yield: yields smoothly so bodies can glide & shed shear!
+    float tauMag = length(tauInc);
+    float overYield = max(tauMag - uYieldStress, 0.0) / max(uYieldStress, 1.0);
+    float effRelax = uRelaxRate + 14.0 * overYield + 22.0 * overYield * overYield;
+    vec2 tauNew = tauInc * exp(-effRelax * uDt);
+
+    float dRho = (Unew.r - uRho0) / max(uRho0, 0.1);
+
+    outMedA = vec4(Unew, 0.0);
+    outMedB = vec4(tauNew, curlV, dRho);
+  }`;
+
+  // --- PASS 3a: Display Stiff Viscoelastic Medium (Compression, Shear Stress, Curl, Grid) ---
+  const DISPLAY_MED_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uMedA;
+  uniform sampler2D uMedB;
+  uniform vec2 uRes;
+  uniform float uZoom;
+  uniform vec2 uZoomCenter;
+  uniform float uShowStrain;
+  uniform float uShowShear;
+  uniform float uShowCurl;
+  uniform float uShowGrid;
+  uniform float uRho0;
+
+  in vec2 vUV;
+  out vec4 fragColor;
+
+  ${COMMON_GLSL}
+
+  vec4 sampleBilin(sampler2D tex, vec2 worldPos) {
+    vec2 p = worldPos / H - 0.5;
+    ivec2 b0 = ivec2(floor(p));
+    vec2 f = fract(p);
+    vec4 v00 = texelFetch(tex, wrapCell(b0), 0);
+    vec4 v10 = texelFetch(tex, wrapCell(b0 + ivec2(1, 0)), 0);
+    vec4 v01 = texelFetch(tex, wrapCell(b0 + ivec2(0, 1)), 0);
+    vec4 v11 = texelFetch(tex, wrapCell(b0 + ivec2(1, 1)), 0);
+    return mix(mix(v00, v10, f.x), mix(v01, v11, f.x), f.y);
+  }
+
+  void main() {
+    float aspect = uRes.x / max(uRes.y, 1.0);
+    float gridAspect = WORLD.x / WORLD.y;
+    float vx, vy;
+    if (uZoom <= 1.05) {
+      vx = WORLD.x; vy = WORLD.y;
+      if (aspect > gridAspect) vx = vy * aspect;
+      else vy = vx / aspect;
+    } else {
+      vy = WORLD.y / uZoom;
+      vx = vy * aspect;
+    }
+
+    vec2 wp = uZoomCenter + (vUV - 0.5) * vec2(vx, vy);
+    if (wp.x < 0.0 || wp.x > WORLD.x || wp.y < 0.0 || wp.y > WORLD.y) {
+      fragColor = vec4(0.025, 0.032, 0.044, 1.0);
+      return;
+    }
+
+    vec4 mA = sampleBilin(uMedA, wp);
+    vec4 mB = sampleBilin(uMedB, wp);
+
+    float dRho = mB.a;
+    float tauMag = length(mB.rg);
+    float curlV = mB.b;
+
+    vec3 col = vec3(0.026, 0.034, 0.048);
+
+    if (uShowStrain > 0.5) {
+      float comp = smoothstep(0.003, 0.16, dRho);
+      float tens = smoothstep(0.003, 0.16, -dRho);
+      col += vec3(1.15, 0.52, 0.12) * pow(comp, 0.90) * 1.05;
+      col += vec3(0.12, 0.48, 1.15) * pow(tens, 0.90) * 1.05;
+    }
+
+    if (uShowShear > 0.5) {
+      float sh = smoothstep(0.35, 8.5, tauMag);
+      col += vec3(0.55, 0.34, 0.95) * pow(sh, 1.0) * 0.42;
+    }
+
+    if (uShowCurl > 0.5) {
+      float cPos = smoothstep(0.45, 6.0,  curlV);
+      float cNeg = smoothstep(0.45, 6.0, -curlV);
+      col += vec3(0.10, 0.85, 0.68) * cPos * 0.28;
+      col += vec3(0.92, 0.24, 0.58) * cNeg * 0.28;
+    }
+
+    // Soft exponential tone-map prevents bright overlapping fields from clipping to white
+    col = 1.0 - exp(-col * 1.35);
+
+    if (uShowGrid > 0.5 && uZoom > 1.25) {
+      vec2 gf = abs(fract(wp + 0.5) - 0.5);
+      float line = 1.0 - smoothstep(0.0, 0.035, min(gf.x, gf.y));
+      col += vec3(0.14, 0.19, 0.26) * line * 0.24;
+    }
+
+    fragColor = vec4(col, 1.0);
+  }`;
+
+  // --- PASS 3b: Extended cos(pi*u) + sin(pi*u) Body Renderer ---
+  const DISPLAY_BODIES_VS = `#version 300 es
+  in vec2 aQuad;
+  uniform sampler2D uBodyA;
+  uniform sampler2D uBodyB;
+  uniform sampler2D uBodyC;
+  uniform vec2 uRes;
+  uniform float uZoom;
+  uniform vec2 uZoomCenter;
+
+  out vec2 vWorldPos;
+  flat out vec2 vCenter;
+  flat out vec4 vA;
+  flat out vec4 vB;
+  flat out vec4 vC;
+
+  ${COMMON_GLSL}
+
+  void main() {
+    int tileId = gl_InstanceID / MAX_BODIES;
+    int bi = gl_InstanceID - tileId * MAX_BODIES;
+    int tx = (tileId % 3) - 1;
+    int ty = (tileId / 3) - 1;
+
+    vec4 bA = texelFetch(uBodyA, ivec2(bi, 0), 0);
+    vec4 bB = texelFetch(uBodyB, ivec2(bi, 0), 0);
+    vec4 bC = texelFetch(uBodyC, ivec2(bi, 0), 0);
+    if (bB.b <= 0.01) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+
+    float size = bB.a;
+    float halfBox = 2.1 * size;
+    vec2 center = bA.rg + vec2(float(tx), float(ty)) * WORLD;
+
+    float aspect = uRes.x / max(uRes.y, 1.0);
+    float gridAspect = WORLD.x / WORLD.y;
+    float vx, vy;
+    if (uZoom <= 1.05) {
+      vx = WORLD.x; vy = WORLD.y;
+      if (aspect > gridAspect) vx = vy * aspect;
+      else vy = vx / aspect;
+    } else {
+      vy = WORLD.y / uZoom;
+      vx = vy * aspect;
+    }
+
+    vec2 wp = center + aQuad * halfBox;
+    vec2 ndc = ((wp - uZoomCenter) / vec2(vx, vy)) * 2.0;
+
+    vWorldPos = wp;
+    vCenter = center;
+    vA = bA;
+    vB = bB;
+    vC = bC;
+    gl_Position = vec4(ndc, 0.0, 1.0);
+  }`;
+
+  const DISPLAY_BODIES_FS = `#version 300 es
+  precision highp float;
+  in vec2 vWorldPos;
+  flat in vec2 vCenter;
+  flat in vec4 vA;
+  flat in vec4 vB;
+  flat in vec4 vC;
+
+  uniform vec2 uRes;
+  uniform float uZoom;
+  uniform float uFreq;
+  uniform float uWaveAmp;
+
+  out vec4 fragColor;
+
+  ${COMMON_GLSL}
+
+  float segDist(vec2 p, vec2 a, vec2 b) {
+    vec2 ab = b - a;
+    float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
+    return length(p - (a + t * ab));
+  }
+
+  void main() {
+    if (vWorldPos.x < 0.0 || vWorldPos.x > WORLD.x || vWorldPos.y < 0.0 || vWorldPos.y > WORLD.y) {
+      discard;
+    }
+    float angle = vB.r;
+    float size = vB.a;
+    float qs = vC.r;
+    float qa = vC.b;
+    vec2 dir = vec2(cos(angle), sin(angle));
+    vec2 perp = vec2(-dir.y, dir.x);
+    float L = 1.25 * size;
+
+    vec2 rel = vWorldPos - vCenter;
+    vec2 local = vec2(dot(rel, perp), dot(rel, dir));
+
+    float minD = 99.0;
+    const int SEGS = 18;
+    float uPrev = -1.0;
+    float yPrev = uWaveAmp * size * (qs * phiS(uPrev) + qa * phiA(uPrev));
+    vec2 pPrev = vec2(uPrev * L, yPrev);
+
+    for (int s = 1; s <= SEGS; s++) {
+      float uNext = -1.0 + 2.0 * float(s) / float(SEGS);
+      float yNext = uWaveAmp * size * (qs * phiS(uNext) + qa * phiA(uNext));
+      vec2 pNext = vec2(uNext * L, yNext);
+      minD = min(minD, segDist(local, pPrev, pNext));
+      pPrev = pNext;
+    }
+
+    float aspect = uRes.x / max(uRes.y, 1.0);
+    float vy = (uZoom <= 1.05 && aspect < WORLD.x / WORLD.y) ? (WORLD.x / aspect) : (WORLD.y / uZoom);
+    float pxSize = vy / max(uRes.y, 1.0);
+
+    float strokeW = max(0.068 * size, pxSize * 2.1);
+    float haloW   = strokeW + max(0.055 * size, pxSize * 1.8);
+    float curveMask = 1.0 - smoothstep(strokeW, strokeW + pxSize * 1.3, minD);
+    float haloMask  = 1.0 - smoothstep(haloW,   haloW   + pxSize * 1.4, minD);
+
+    // Highlight exact zero-crossing nodes at u = +-0.5
+    float dN1 = length(local - vec2(-0.5 * L, uWaveAmp * size * (qs * phiS(-0.5) + qa * phiA(-0.5))));
+    float dN2 = length(local - vec2( 0.5 * L, uWaveAmp * size * (qs * phiS( 0.5) + qa * phiA( 0.5))));
+    float nodeR = max(0.075 * size, pxSize * 1.9);
+    float nodeMask = 1.0 - smoothstep(nodeR, nodeR + pxSize * 1.2, min(dN1, dN2));
+
+    float speed = length(vA.ba);
+    float moveMix = smoothstep(0.05, 0.85, speed);
+    vec3 colRest = vec3(0.98, 0.58, 0.24);
+    vec3 colMove = vec3(0.24, 0.94, 0.86);
+    vec3 baseCol = mix(colRest, colMove, moveMix);
+
+    float alpha = max(max(curveMask, haloMask * 0.72), nodeMask * 0.95);
+    if (alpha <= 0.005) discard;
+    vec3 darkHalo = vec3(0.03, 0.04, 0.06);
+    vec3 bodyCol = mix(darkHalo, baseCol, clamp(curveMask / max(haloMask, 0.01), 0.0, 1.0));
+    vec3 finalCol = mix(bodyCol, vec3(0.98, 1.0, 1.0), nodeMask * 0.85);
+    fragColor = vec4(finalCol, alpha);
+  }`;
+
+  const progMarkerImp   = createProgram(QUAD_VS, MARKER_IMPULSE_FS);
+  const progP2GImp      = createProgram(P2G_IMPULSE_VS, P2G_IMPULSE_FS);
+  const progBodyUpdate  = createProgram(QUAD_VS, BODY_UPDATE_FS);
+  const progMedium      = createProgram(QUAD_VS, MEDIUM_FS);
+  const progDisplayMed  = createProgram(QUAD_VS, DISPLAY_MED_FS);
+  const progDisplayBody = createProgram(DISPLAY_BODIES_VS, DISPLAY_BODIES_FS);
+
+  const bodyA = [createFloatTex(MAX_BODIES, 1), createFloatTex(MAX_BODIES, 1)];
+  const bodyB = [createFloatTex(MAX_BODIES, 1), createFloatTex(MAX_BODIES, 1)];
+  const bodyC = [createFloatTex(MAX_BODIES, 1), createFloatTex(MAX_BODIES, 1)];
+  const bodyFbo = [
+    createFBO([bodyA[0], bodyB[0], bodyC[0]]),
+    createFBO([bodyA[1], bodyB[1], bodyC[1]])
+  ];
+
+  const impMarkerA = createFloatTex(MAX_BODIES, NUM_MARKERS);
+  const impMarkerB = createFloatTex(MAX_BODIES, NUM_MARKERS);
+  const impMarkerFbo = createFBO([impMarkerA, impMarkerB]);
+
+  const impGridTex = createFloatTex(NX, NY, !extFloatBlend);
+  const impGridFbo = createFBO([impGridTex]);
+
+  const medA = [createFloatTex(NX, NY), createFloatTex(NX, NY)];
+  const medB = [createFloatTex(NX, NY), createFloatTex(NX, NY)];
+  const medFbo = [createFBO([medA[0], medB[0]]), createFBO([medA[1], medB[1]])];
+
+  let cur = 0;
+  let medCur = 0;
+  let simTime = 0;
+  let frameCount = 0;
+  let initialMassTotal = NX * NY * H * H * params.rho0;
+  let initialMom = [0, 0];
+
+  function makeEmptyBodies() {
+    return [
+      new Float32Array(MAX_BODIES * 4),
+      new Float32Array(MAX_BODIES * 4),
+      new Float32Array(MAX_BODIES * 4)
+    ];
+  }
+
+  function setBody(dA, dB, dC, idx, x, y, vx, vy, angle, omegaBody, size, phi) {
+    const omega0 = Math.PI * 2 * params.freq;
+    const o = idx * 4;
+    dA[o] = x; dA[o + 1] = y; dA[o + 2] = vx; dA[o + 3] = vy;
+    dB[o] = angle; dB[o + 1] = omegaBody; dB[o + 2] = 1.0; dB[o + 3] = size;
+    dC[o] = Math.cos(phi); dC[o + 1] = -omega0 * Math.sin(phi); dC[o + 2] = 0.0; dC[o + 3] = 0.0;
+  }
+
+  function uploadState(dA, dB, dC) {
+    const medAZero = new Float32Array(NX * NY * 4);
+    const medBZero = new Float32Array(NX * NY * 4);
+    for (let k = 0; k < NX * NY; k++) {
+      medAZero[k * 4] = params.rho0;
+    }
+    for (let i = 0; i < 2; i++) {
+      gl.bindTexture(gl.TEXTURE_2D, bodyA[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MAX_BODIES, 1, gl.RGBA, gl.FLOAT, dA);
+      gl.bindTexture(gl.TEXTURE_2D, bodyB[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MAX_BODIES, 1, gl.RGBA, gl.FLOAT, dB);
+      gl.bindTexture(gl.TEXTURE_2D, bodyC[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MAX_BODIES, 1, gl.RGBA, gl.FLOAT, dC);
+      gl.bindTexture(gl.TEXTURE_2D, medA[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, NX, NY, gl.RGBA, gl.FLOAT, medAZero);
+      gl.bindTexture(gl.TEXTURE_2D, medB[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, NX, NY, gl.RGBA, gl.FLOAT, medBZero);
+    }
+    initialMassTotal = NX * NY * H * H * params.rho0;
+    initialMom = [0, 0];
+    for (let i = 0; i < MAX_BODIES; i++) {
+      if (dB[i * 4 + 2] > 0.01) {
+        const m = params.bodyMass * dB[i * 4 + 3] * dB[i * 4 + 3];
+        initialMom[0] += m * dA[i * 4 + 2];
+        initialMom[1] += m * dA[i * 4 + 3];
+      }
+    }
+    simTime = 0;
+  }
+
+  function seedPreset(kind) {
+    const [dA, dB, dC] = makeEmptyBodies();
+    const cx = WORLD_W * 0.5;
+    const cy = WORLD_H * 0.5;
+    params.activePreset = kind;
+
+    if (kind === 'single') {
+      setBody(dA, dB, dC, 0, cx, cy, 0, 0, Math.PI * 0.5, 0, 1.0, 0.0);
+      params.zoomed = true; params.zoomLevel = 3.5; params.zoomCenter = [cx, cy];
+      params.modeName = '1. Single cos(πu) [V=0 Parity Test]';
+    } else if (kind === 'pair-0') {
+      setBody(dA, dB, dC, 0, cx, cy - 1.15, 0, 0, Math.PI * 0.5, 0, 1.0, 0.0);
+      setBody(dA, dB, dC, 1, cx, cy + 1.15, 0, 0, Math.PI * 0.5, 0, 1.0, 0.0);
+      params.zoomed = true; params.zoomLevel = 3.5; params.zoomCenter = [cx, cy];
+      params.modeName = '2. Pair (0° In-Phase) [Mirror Symmetry]';
+    } else if (kind === 'pair-90') {
+      setBody(dA, dB, dC, 0, cx, cy - 1.15, 0, 0, Math.PI * 0.5, 0, 1.0, 0.0);
+      setBody(dA, dB, dC, 1, cx, cy + 1.15, 0, 0, Math.PI * 0.5, 0, 1.0, Math.PI * 0.5);
+      params.zoomed = true; params.zoomLevel = 3.5; params.zoomCenter = [cx, cy];
+      params.modeName = '3. Pair (90° Wave) [Parity Broken]';
+    } else if (kind === 'chain-wave') {
+      for (let i = 0; i < 5; i++) {
+        setBody(dA, dB, dC, i, cx, cy - 4.4 + i * 2.2, 0, 0, Math.PI * 0.5, 0, 1.0, i * (Math.PI / 3.0));
+      }
+      params.zoomed = true; params.zoomLevel = 2.6; params.zoomCenter = [cx, cy];
+      params.modeName = '4. Chain (5 Metachronal Wave)';
+    } else if (kind === 'chain-kick') {
+      for (let i = 0; i < 5; i++) {
+        const xOff = (i === 2) ? 0.35 : (i === 3 ? 0.18 : 0.0);
+        setBody(dA, dB, dC, i, cx + xOff, cy - 4.4 + i * 2.2, 0, 0, Math.PI * 0.5, 0, 1.0, i * (Math.PI / 3.0));
+      }
+      params.zoomed = true; params.zoomLevel = 2.6; params.zoomCenter = [cx, cy];
+      params.modeName = '5. Chain + Lateral Kick [Buckling Test]';
+    } else if (kind === 'ring') {
+      const n = 12, R = 4.6;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const x = cx + Math.cos(a) * R;
+        const y = cy + Math.sin(a) * R;
+        const phi = (i % 4) * (Math.PI * 0.5);
+        setBody(dA, dB, dC, i, x, y, 0, 0, a - Math.PI * 0.5, 0, 1.0, phi);
+      }
+      params.zoomed = true; params.zoomLevel = 2.7; params.zoomCenter = [cx, cy];
+      params.modeName = '6. Closed Ring (12) [Metachronal]';
+    } else if (kind === 'soup') {
+      // Deterministic PRNG for reproducible soup experiments
+      let s = 133742;
+      const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const pts = [];
+      for (let i = 0; i < 32; i++) {
+        for (let tries = 0; tries < 40; tries++) {
+          const x = 4.0 + rnd() * (WORLD_W - 8.0);
+          const y = 4.0 + rnd() * (WORLD_H - 8.0);
+          let ok = true;
+          for (const p of pts) {
+            if (Math.hypot(p[0] - x, p[1] - y) < 3.2) { ok = false; break; }
+          }
+          if (ok) {
+            pts.push([x, y]);
+            setBody(dA, dB, dC, i, x, y, 0, 0, rnd() * Math.PI * 2, 0, 0.9 + 0.2 * rnd(), rnd() * Math.PI * 2);
+            break;
+          }
+        }
+      }
+      params.zoomed = false; params.zoomLevel = 1.0; params.zoomCenter = [cx, cy];
+      params.modeName = '7. Random Soup (32) [Zero Rules]';
+    } else if (kind === 'clear') {
+      params.modeName = 'Cleared (Click to place)';
+    }
+
+    uploadState(dA, dB, dC);
+    updateModeUI(kind);
+  }
+
+  function updateModeUI(activeKind) {
+    document.getElementById('mode-label').textContent = params.modeName;
+    const map = {
+      single: 'btn-single',
+      'pair-0': 'btn-pair-0',
+      'pair-90': 'btn-pair-90',
+      'chain-wave': 'btn-chain-wave',
+      'chain-kick': 'btn-chain-kick',
+      ring: 'btn-ring',
+      soup: 'btn-soup',
+      clear: 'btn-clear'
+    };
+    for (const [k, id] of Object.entries(map)) {
+      document.getElementById(id).classList.toggle('active', k === activeKind);
+    }
+    document.getElementById('btn-zoom').classList.toggle('active', params.zoomed);
+    document.getElementById('btn-zoom').textContent = params.zoomed ? 'Zoom Out (Space)' : 'Zoom In (Space)';
+  }
+
+  function bindSlider(slId, valId, key, fmt) {
+    const el = document.getElementById(slId);
+    const valEl = document.getElementById(valId);
+    el.addEventListener('input', () => {
+      params[key] = parseFloat(el.value);
+      valEl.textContent = fmt(params[key]);
+    });
+  }
+
+  bindSlider('sl-k', 'val-k', 'bulkK', v => v.toFixed(1));
+  bindSlider('sl-g', 'val-g', 'shearG', v => v.toFixed(1));
+  bindSlider('sl-hard', 'val-hard', 'hardening', v => v.toFixed(1));
+  bindSlider('sl-relax', 'val-relax', 'relaxRate', v => v === 0 ? '0.00 (Solid)' : v.toFixed(2) + ' s⁻¹');
+  bindSlider('sl-yield', 'val-yield', 'yieldStress', v => v.toFixed(1));
+  bindSlider('sl-visc', 'val-visc', 'viscosity', v => v.toFixed(2));
+  bindSlider('sl-rho', 'val-rho', 'rho0', v => v.toFixed(2));
+  bindSlider('sl-freq', 'val-freq', 'freq', v => v.toFixed(1) + ' Hz');
+  bindSlider('sl-amp', 'val-amp', 'waveAmp', v => v.toFixed(2));
+  bindSlider('sl-mass', 'val-mass', 'bodyMass', v => v.toFixed(1));
+  bindSlider('sl-alpha', 'val-alpha', 'couplingAlpha', v => v.toFixed(2));
+  bindSlider('sl-load', 'val-load', 'loadSync', v => v.toFixed(2));
+  bindSlider('sl-twist', 'val-twist', 'twistLoad', v => v.toFixed(2));
+
+  document.getElementById('chk-rad').addEventListener('change', e => params.radSurvival = e.target.checked);
+  document.getElementById('chk-strain').addEventListener('change', e => params.showStrain = e.target.checked);
+  document.getElementById('chk-shear').addEventListener('change', e => params.showShear = e.target.checked);
+  document.getElementById('chk-curl').addEventListener('change', e => params.showCurl = e.target.checked);
+  document.getElementById('chk-grid').addEventListener('change', e => params.showGrid = e.target.checked);
+
+  document.getElementById('btn-single').onclick = () => seedPreset('single');
+  document.getElementById('btn-pair-0').onclick = () => seedPreset('pair-0');
+  document.getElementById('btn-pair-90').onclick = () => seedPreset('pair-90');
+  document.getElementById('btn-chain-wave').onclick = () => seedPreset('chain-wave');
+  document.getElementById('btn-chain-kick').onclick = () => seedPreset('chain-kick');
+  document.getElementById('btn-ring').onclick = () => seedPreset('ring');
+  document.getElementById('btn-soup').onclick = () => seedPreset('soup');
+  document.getElementById('btn-clear').onclick = () => seedPreset('clear');
+
+  document.getElementById('btn-pause').onclick = () => {
+    params.paused = !params.paused;
+    document.getElementById('btn-pause').classList.toggle('active', params.paused);
+    document.getElementById('btn-pause').textContent = params.paused ? 'Resume (P)' : 'Pause (P)';
+  };
+  document.getElementById('btn-zoom').onclick = () => {
+    params.zoomed = !params.zoomed;
+    if (params.zoomed && params.zoomLevel <= 1.2) params.zoomLevel = 3.0;
+    document.getElementById('btn-zoom').classList.toggle('active', params.zoomed);
+    document.getElementById('btn-zoom').textContent = params.zoomed ? 'Zoom Out (Space)' : 'Zoom In (Space)';
+  };
+
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); document.getElementById('btn-zoom').click(); }
+    else if (e.key === 'p' || e.key === 'P') { document.getElementById('btn-pause').click(); }
+  });
+
+  // Click to drop a resting cos(pi*u) body into the arena
+  let placeCursor = 32;
+  let currentZoom = 3.0;
+  function screenToWorld(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const u = (clientX - rect.left) / rect.width;
+    const v = 1.0 - (clientY - rect.top) / rect.height;
+    const aspect = rect.width / Math.max(rect.height, 1);
+    const gridAspect = WORLD_W / WORLD_H;
+    let vx, vy;
+    if (currentZoom <= 1.05) {
+      vx = WORLD_W; vy = WORLD_H;
+      if (aspect > gridAspect) vx = vy * aspect;
+      else vy = vx / aspect;
+    } else {
+      vy = WORLD_H / currentZoom;
+      vx = vy * aspect;
+    }
+    return [
+      ((params.zoomCenter[0] + (u - 0.5) * vx) % WORLD_W + WORLD_W) % WORLD_W,
+      ((params.zoomCenter[1] + (v - 0.5) * vy) % WORLD_H + WORLD_H) % WORLD_H
+    ];
+  }
+  canvas.addEventListener('pointerdown', e => {
+    const [wx, wy] = screenToWorld(e.clientX, e.clientY);
+    const slot = placeCursor;
+    placeCursor = (placeCursor + 1) % MAX_BODIES;
+    const omega0 = Math.PI * 2 * params.freq;
+    const aPix = new Float32Array([wx, wy, 0.0, 0.0]);
+    const bPix = new Float32Array([Math.PI * 0.5, 0.0, 1.0, 1.0]);
+    const cPix = new Float32Array([1.0, 0.0, 0.0, 0.0]);
+    for (let i = 0; i < 2; i++) {
+      gl.bindTexture(gl.TEXTURE_2D, bodyA[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, slot, 0, 1, 1, gl.RGBA, gl.FLOAT, aPix);
+      gl.bindTexture(gl.TEXTURE_2D, bodyB[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, slot, 0, 1, 1, gl.RGBA, gl.FLOAT, bPix);
+      gl.bindTexture(gl.TEXTURE_2D, bodyC[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, slot, 0, 1, 1, gl.RGBA, gl.FLOAT, cPix);
+    }
+  });
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.floor(canvas.clientWidth * dpr);
+    const h = Math.floor(canvas.clientHeight * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function drawQuad(prog, attrib = 'aPos') {
+    const loc = gl.getAttribLocation(prog, attrib);
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  function drawInstanced(prog, attrib, count) {
+    const loc = gl.getAttribLocation(prog, attrib);
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, count);
+  }
+
+  function stepCoupled(dt) {
+    // Pass A: Compute exact marker impulses J_k
+    gl.viewport(0, 0, MAX_BODIES, NUM_MARKERS);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, impMarkerFbo);
+    gl.useProgram(progMarkerImp);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, bodyA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progMarkerImp, 'uBodyA'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, bodyB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progMarkerImp, 'uBodyB'), 1);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, bodyC[cur]);
+    gl.uniform1i(gl.getUniformLocation(progMarkerImp, 'uBodyC'), 2);
+    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, medA[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progMarkerImp, 'uMedA'), 3);
+    gl.uniform1f(gl.getUniformLocation(progMarkerImp, 'uRho0'), params.rho0);
+    gl.uniform1f(gl.getUniformLocation(progMarkerImp, 'uWaveAmp'), params.waveAmp);
+    gl.uniform1f(gl.getUniformLocation(progMarkerImp, 'uBodyMass'), params.bodyMass);
+    gl.uniform1f(gl.getUniformLocation(progMarkerImp, 'uAlpha'), params.couplingAlpha);
+    drawQuad(progMarkerImp);
+
+    // Pass B: Exact Peskin P2G splat (+J_k onto grid)
+    gl.viewport(0, 0, NX, NY);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, impGridFbo);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(progP2GImp);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, impMarkerA);
+    gl.uniform1i(gl.getUniformLocation(progP2GImp, 'uImpA'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, impMarkerB);
+    gl.uniform1i(gl.getUniformLocation(progP2GImp, 'uImpB'), 1);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    drawInstanced(progP2GImp, 'aQuad', MAX_BODIES * NUM_MARKERS * 9);
+    gl.disable(gl.BLEND);
+
+    // Pass C: Exact opposite recoil (-J_k onto bodies) & modal update
+    const nextB = 1 - cur;
+    gl.viewport(0, 0, MAX_BODIES, 1);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, bodyFbo[nextB]);
+    gl.useProgram(progBodyUpdate);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, bodyA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progBodyUpdate, 'uBodyA'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, bodyB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progBodyUpdate, 'uBodyB'), 1);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, bodyC[cur]);
+    gl.uniform1i(gl.getUniformLocation(progBodyUpdate, 'uBodyC'), 2);
+    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, impMarkerA);
+    gl.uniform1i(gl.getUniformLocation(progBodyUpdate, 'uImpA'), 3);
+    gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, impMarkerB);
+    gl.uniform1i(gl.getUniformLocation(progBodyUpdate, 'uImpB'), 4);
+    gl.uniform1f(gl.getUniformLocation(progBodyUpdate, 'uDt'), dt);
+    gl.uniform1f(gl.getUniformLocation(progBodyUpdate, 'uFreq'), params.freq);
+    gl.uniform1f(gl.getUniformLocation(progBodyUpdate, 'uWaveAmp'), params.waveAmp);
+    gl.uniform1f(gl.getUniformLocation(progBodyUpdate, 'uBodyMass'), params.bodyMass);
+    gl.uniform1f(gl.getUniformLocation(progBodyUpdate, 'uLoadSync'), params.loadSync);
+    gl.uniform1f(gl.getUniformLocation(progBodyUpdate, 'uTwistLoad'), params.twistLoad);
+    gl.uniform1f(gl.getUniformLocation(progBodyUpdate, 'uRadSurvival'), params.radSurvival ? 1.0 : 0.0);
+    drawQuad(progBodyUpdate);
+    cur = nextB;
+
+    // Pass D: Conservative finite-volume stiff viscoelastic step
+    const nextM = 1 - medCur;
+    gl.viewport(0, 0, NX, NY);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, medFbo[nextM]);
+    gl.useProgram(progMedium);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, medA[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progMedium, 'uMedA'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, medB[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progMedium, 'uMedB'), 1);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, impGridTex);
+    gl.uniform1i(gl.getUniformLocation(progMedium, 'uImpTex'), 2);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uDt'), dt);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uBulkK'), params.bulkK);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uShearG'), params.shearG);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uHardening'), params.hardening);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uRelaxRate'), params.relaxRate);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uYieldStress'), params.yieldStress);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uVisc'), params.viscosity);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uRho0'), params.rho0);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uApplyImp'), 1.0);
+    drawQuad(progMedium);
+    medCur = nextM;
+
+    simTime += dt;
+  }
+
+  function stepSimFrame(frameDt) {
+    const cEst = Math.sqrt((params.bulkK * 3.0 + params.shearG) / Math.max(params.rho0 * 0.5, 0.2));
+    const substeps = Math.max(6, Math.min(28, Math.ceil((frameDt * cEst) / (H * 0.28))));
+    const subDt = frameDt / substeps;
+    for (let s = 0; s < substeps; s++) {
+      stepCoupled(subDt);
+    }
+    frameCount++;
+  }
+
+  // --- Live Exact Conservation & Physics Telemetry ---
+  const bABuf = new Float32Array(MAX_BODIES * 4);
+  const bBBuf = new Float32Array(MAX_BODIES * 4);
+  const bCBuf = new Float32Array(MAX_BODIES * 4);
+  const mABuf = new Float32Array(NX * NY * 4);
+  const mBBuf = new Float32Array(NX * NY * 4);
+  let lastMetrics = null;
+
+  function computeMetrics() {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, bodyFbo[cur]);
+    gl.readBuffer(gl.COLOR_ATTACHMENT0); gl.readPixels(0, 0, MAX_BODIES, 1, gl.RGBA, gl.FLOAT, bABuf);
+    gl.readBuffer(gl.COLOR_ATTACHMENT1); gl.readPixels(0, 0, MAX_BODIES, 1, gl.RGBA, gl.FLOAT, bBBuf);
+    gl.readBuffer(gl.COLOR_ATTACHMENT2); gl.readPixels(0, 0, MAX_BODIES, 1, gl.RGBA, gl.FLOAT, bCBuf);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, medFbo[medCur]);
+    gl.readBuffer(gl.COLOR_ATTACHMENT0); gl.readPixels(0, 0, NX, NY, gl.RGBA, gl.FLOAT, mABuf);
+    gl.readBuffer(gl.COLOR_ATTACHMENT1); gl.readPixels(0, 0, NX, NY, gl.RGBA, gl.FLOAT, mBBuf);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    let count = 0, bPx = 0, bPy = 0, bKE = 0, comX = 0, comY = 0, massSum = 0;
+    let meanSpeed = 0, meanVy = 0, meanQaRMS = 0, maxSpeed = 0;
+    const bodyPos = [];
+    for (let i = 0; i < MAX_BODIES; i++) {
+      const o = i * 4;
+      if (bBBuf[o + 2] <= 0.01) continue;
+      const x = bABuf[o], y = bABuf[o + 1], vx = bABuf[o + 2], vy = bABuf[o + 3];
+      const sz = bBBuf[o + 3];
+      const m = params.bodyMass * sz * sz;
+      const sp = Math.hypot(vx, vy);
+      count++;
+      bPx += m * vx; bPy += m * vy;
+      bKE += 0.5 * m * (vx * vx + vy * vy);
+      comX += m * x; comY += m * y; massSum += m;
+      meanSpeed += sp; meanVy += vy;
+      if (sp > maxSpeed) maxSpeed = sp;
+      meanQaRMS += bCBuf[o + 2] * bCBuf[o + 2];
+      bodyPos.push([+x.toFixed(2), +y.toFixed(2), +vx.toFixed(3), +vy.toFixed(3)]);
+    }
+
+    const dA = H * H;
+    let mMass = 0, mPx = 0, mPy = 0, mKE = 0, mPE = 0, mShearE = 0, maxDRho = 0, maxTau = 0, curlSq = 0;
+    let nanCount = 0;
+    const N = NX * NY;
+    for (let k = 0; k < N; k++) {
+      const o = k * 4;
+      const rho = mABuf[o], mx = mABuf[o + 1], my = mABuf[o + 2];
+      const t1 = mBBuf[o], t2 = mBBuf[o + 1], curlV = mBBuf[o + 2], dRho = mBBuf[o + 3];
+      if (!Number.isFinite(rho) || !Number.isFinite(mx) || !Number.isFinite(t1)) { nanCount++; continue; }
+      const rSafe = Math.max(rho, 0.18 * params.rho0);
+      const vx = mx / rSafe, vy = my / rSafe;
+      mMass += rho * dA;
+      mPx += mx * dA;
+      mPy += my * dA;
+      mKE += 0.5 * rho * (vx * vx + vy * vy) * dA;
+      mPE += 0.5 * params.bulkK * dRho * dRho * dA;
+      if (params.shearG > 0.1) mShearE += 0.5 * ((t1 * t1 + t2 * t2) / params.shearG) * dA;
+      if (Math.abs(dRho) > maxDRho) maxDRho = Math.abs(dRho);
+      const tm = Math.hypot(t1, t2);
+      if (tm > maxTau) maxTau = tm;
+      curlSq += curlV * curlV;
+    }
+
+    const totPx = bPx + mPx;
+    const totPy = bPy + mPy;
+    const dMomMag = Math.hypot(totPx - initialMom[0], totPy - initialMom[1]);
+    const relMassErr = Math.abs(mMass - initialMassTotal) / Math.max(initialMassTotal, 1.0);
+
+    lastMetrics = {
+      time: +simTime.toFixed(2),
+      preset: params.activePreset,
+      count,
+      nanCount,
+      relMassErr: +relMassErr.toExponential(2),
+      pBodies: [+bPx.toFixed(4), +bPy.toFixed(4)],
+      pMed: [+mPx.toFixed(4), +mPy.toFixed(4)],
+      pTotalErr: +dMomMag.toFixed(5),
+      comYShift: massSum ? +((comY / massSum) - WORLD_H * 0.5).toFixed(3) : 0,
+      comXShift: massSum ? +((comX / massSum) - WORLD_W * 0.5).toFixed(3) : 0,
+      meanVy: count ? +(meanVy / count).toFixed(4) : 0,
+      meanSpeed: count ? +(meanSpeed / count).toFixed(4) : 0,
+      maxSpeed: +maxSpeed.toFixed(4),
+      qaRMS: count ? +Math.sqrt(meanQaRMS / count).toFixed(4) : 0,
+      medKE: +mKE.toFixed(3),
+      medPE: +mPE.toFixed(3),
+      medShearE: +mShearE.toFixed(3),
+      bodyKE: +bKE.toFixed(4),
+      maxDRho: +maxDRho.toFixed(4),
+      maxTau: +maxTau.toFixed(3),
+      curlRMS: +Math.sqrt(curlSq / N).toFixed(4),
+      sampleBodies: bodyPos.slice(0, 5)
+    };
+    return lastMetrics;
+  }
+
+  function updateHUD() {
+    const m = computeMetrics();
+    const el = document.getElementById('cons-line');
+    el.textContent =
+      `|ΔP_tot|: ${m.pTotalErr.toFixed(5)} (P_body=[${m.pBodies[0].toFixed(2)},${m.pBodies[1].toFixed(2)}], P_med=[${m.pMed[0].toFixed(2)},${m.pMed[1].toFixed(2)}]) | ΔM/M₀: ${m.relMassErr} | COM_Δy: ${m.comYShift >= 0 ? '+' : ''}${m.comYShift.toFixed(3)} | v̄_y: ${m.meanVy >= 0 ? '+' : ''}${m.meanVy.toFixed(3)} | E(K/P/Sh): ${m.medKE.toFixed(1)}/${m.medPE.toFixed(1)}/${m.medShearE.toFixed(1)} | max|τ|: ${m.maxTau.toFixed(2)}`;
+  }
+
+  let lastT = performance.now();
+  let fpsSmooth = 60;
+
+  function render(now) {
+    resize();
+    const rawDt = Math.min((now - lastT) / 1000, 0.04);
+    lastT = now;
+    if (rawDt > 0.001) fpsSmooth = fpsSmooth * 0.92 + (1 / rawDt) * 0.08;
+
+    const targetZoom = params.zoomed ? params.zoomLevel : 1.0;
+    currentZoom += (targetZoom - currentZoom) * Math.min(rawDt * 8.0, 1.0);
+
+    if (!params.paused) {
+      stepSimFrame(Math.min(rawDt, 0.025));
+    }
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    // Draw Medium
+    gl.useProgram(progDisplayMed);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, medA[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayMed, 'uMedA'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, medB[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayMed, 'uMedB'), 1);
+    gl.uniform2f(gl.getUniformLocation(progDisplayMed, 'uRes'), canvas.width, canvas.height);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uZoom'), currentZoom);
+    gl.uniform2f(gl.getUniformLocation(progDisplayMed, 'uZoomCenter'), params.zoomCenter[0], params.zoomCenter[1]);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uShowStrain'), params.showStrain ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uShowShear'), params.showShear ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uShowCurl'), params.showCurl ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uShowGrid'), params.showGrid ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uRho0'), params.rho0);
+    drawQuad(progDisplayMed);
+
+    // Draw Bodies
+    gl.useProgram(progDisplayBody);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, bodyA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayBody, 'uBodyA'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, bodyB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayBody, 'uBodyB'), 1);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, bodyC[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayBody, 'uBodyC'), 2);
+    gl.uniform2f(gl.getUniformLocation(progDisplayBody, 'uRes'), canvas.width, canvas.height);
+    gl.uniform1f(gl.getUniformLocation(progDisplayBody, 'uZoom'), currentZoom);
+    gl.uniform2f(gl.getUniformLocation(progDisplayBody, 'uZoomCenter'), params.zoomCenter[0], params.zoomCenter[1]);
+    gl.uniform1f(gl.getUniformLocation(progDisplayBody, 'uFreq'), params.freq);
+    gl.uniform1f(gl.getUniformLocation(progDisplayBody, 'uWaveAmp'), params.waveAmp);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    drawInstanced(progDisplayBody, 'aQuad', MAX_BODIES * 9);
+    gl.disable(gl.BLEND);
+
+    const cp = Math.sqrt((params.bulkK + params.shearG) / Math.max(params.rho0, 0.1));
+    const cs = Math.sqrt(params.shearG / Math.max(params.rho0, 0.1));
+    const deStr = params.relaxRate <= 0.001 ? '∞ (Solid)' : ((Math.PI * 2 * params.freq) / params.relaxRate).toFixed(0);
+    document.getElementById('stats-line').textContent =
+      `Time: ${simTime.toFixed(1)}s  |  FPS: ${Math.round(fpsSmooth)}  |  c_p/c_s: ${cp.toFixed(1)}/${cs.toFixed(1)}  |  De: ${deStr}  |  Zoom: ${currentZoom.toFixed(1)}×`;
+
+    if (!params.paused && (frameCount % 16 === 0 || !lastMetrics)) {
+      updateHUD();
+    }
+    requestAnimationFrame(render);
+  }
+
+  // Deterministic URL query support for verification: ?preset=pair-90&step=3.0&relax=0.0&g=32
+  const qs = new URLSearchParams(window.location.search);
+  if (qs.has('k'))     { params.bulkK = parseFloat(qs.get('k')); document.getElementById('sl-k').value = params.bulkK; document.getElementById('val-k').textContent = params.bulkK.toFixed(1); }
+  if (qs.has('g'))     { params.shearG = parseFloat(qs.get('g')); document.getElementById('sl-g').value = params.shearG; document.getElementById('val-g').textContent = params.shearG.toFixed(1); }
+  if (qs.has('relax')) { params.relaxRate = parseFloat(qs.get('relax')); document.getElementById('sl-relax').value = params.relaxRate; document.getElementById('val-relax').textContent = params.relaxRate === 0 ? '0.00 (Solid)' : params.relaxRate.toFixed(2) + ' s⁻¹'; }
+  if (qs.has('yield')) { params.yieldStress = parseFloat(qs.get('yield')); document.getElementById('sl-yield').value = params.yieldStress; document.getElementById('val-yield').textContent = params.yieldStress.toFixed(1); }
+  if (qs.has('amp'))   { params.waveAmp = parseFloat(qs.get('amp')); document.getElementById('sl-amp').value = params.waveAmp; document.getElementById('val-amp').textContent = params.waveAmp.toFixed(2); }
+  if (qs.has('load'))  { params.loadSync = parseFloat(qs.get('load')); document.getElementById('sl-load').value = params.loadSync; document.getElementById('val-load').textContent = params.loadSync.toFixed(2); }
+
+  seedPreset(qs.get('preset') || 'pair-90');
+  const stepSec = parseFloat(qs.get('step') || '0');
+  if (stepSec > 0) {
+    params.paused = true;
+    document.getElementById('btn-pause').classList.add('active');
+    document.getElementById('btn-pause').textContent = 'Resume (P)';
+    const stepDt = 1 / 60;
+    const nSteps = Math.max(1, Math.round(stepSec / stepDt));
+    for (let i = 0; i < nSteps; i++) stepSimFrame(stepDt);
+    currentZoom = params.zoomed ? params.zoomLevel : 1.0;
+    const m = computeMetrics();
+    document.getElementById('cons-line').textContent = 'JSON: ' + JSON.stringify(m);
+  }
+
+  requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>

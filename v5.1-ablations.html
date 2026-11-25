@@ -1,0 +1,2304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flapping Vibrations v5.1 — Ablation Lab (T1–T4)</title>
+<style>
+  :root {
+    --bg: #0b0e12;
+    --panel: #12171f;
+    --border: #232c3a;
+    --text: #dce4ee;
+    --muted: #8896a8;
+    --accent: #f07d32;
+    --accent2: #3dd6c6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #07090c;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
+  #hud {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(12, 16, 22, 0.84);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+  }
+  #hud .key {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: #1e2633;
+    border: 1px solid #323e52;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: #fff;
+  }
+  #sidebar {
+    width: 316px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 12.5px;
+  }
+  h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: #fff;
+  }
+  .subtitle {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .archive-links {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 11px;
+    flex-wrap: wrap;
+  }
+  .archive-link {
+    color: var(--accent2);
+    text-decoration: none;
+  }
+  .archive-link:hover {
+    text-decoration: underline;
+  }
+  .section {
+    border-top: 1px solid var(--border);
+    padding-top: 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--muted);
+  }
+  .btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  button {
+    background: #1a222e;
+    color: var(--text);
+    border: 1px solid #2b3748;
+    border-radius: 6px;
+    padding: 6px 7px;
+    font-size: 11.2px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  button:hover {
+    background: #232e3f;
+    border-color: #3d4e66;
+  }
+  button.active {
+    background: rgba(240, 125, 50, 0.18);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .control {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .control-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.3px;
+  }
+  .control-val {
+    font-family: ui-monospace, monospace;
+    color: var(--accent2);
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .legend {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11.2px;
+    color: var(--muted);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+  <div id="canvas-wrap">
+    <canvas id="glcanvas"></canvas>
+    <div id="hud">
+      <div><strong id="mode-label">4. Chain (5 Straight)</strong> &nbsp;|&nbsp; Birds: <strong>256 Continuous</strong> &nbsp;|&nbsp; Elastic Vacuum: <strong>320 × 200</strong></div>
+      <div id="stats-line">Time: 0.0s &nbsp;|&nbsp; FPS: 60 &nbsp;|&nbsp; c₀: 5.48 c/s &nbsp;|&nbsp; Zoom: 3.0×</div>
+      <div id="t4-hud" style="margin-top:4px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.1);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#b8d7f5;">T4 Telemetry: initializing...</div>
+      <div style="margin-top:4px;color:#9aa8ba;">
+        <span class="key">Space</span> Hold/Toggle Zoom &nbsp;
+        <span class="key">P</span> Pause &nbsp;
+        <span class="key">Drag</span> Draw 1.5-sine chain
+      </div>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div>
+      <h1>Flapping Vibrations v5.1 — Ablation Lab</h1>
+      <div class="subtitle">Falsification Suite (T1–T4) &amp; Conservation Telemetry</div>
+      <div class="archive-links">
+        <a class="archive-link" href="v5.1.html">v5.1 &rarr;</a>
+        <a class="archive-link" href="v5.0.html">v5.0 &rarr;</a>
+        <a class="archive-link" href="v4.4.html">v4.4 &rarr;</a>
+        <a class="archive-link" href="v4.3.html">v4.3 &rarr;</a>
+        <a class="archive-link" href="v4.2.html">v4.2 &rarr;</a>
+        <a class="archive-link" href="v4.1.html">v4.1 &rarr;</a>
+        <a class="archive-link" href="v3.html">v3.0 &rarr;</a>
+        <a class="archive-link" href="v2.1.html">v2.1 &rarr;</a>
+        <a class="archive-link" href="v2.html">v2.0 &rarr;</a>
+        <a class="archive-link" href="stage1-milestone.html">Stage 1 &rarr;</a>
+      </div>
+    </div>
+
+    <div class="section" style="border:1px solid rgba(240,125,50,0.45);background:rgba(240,125,50,0.06);">
+      <div class="section-title" style="color:var(--accent);">Falsification Tests (T1–T4)</div>
+      <label class="toggle-row">
+        <span>T1: Unbiased Splat (wingEnv=1, fPart=0, no +0.16)</span>
+        <input type="checkbox" id="chk-t1" />
+      </label>
+      <label class="toggle-row">
+        <span>T1b: Pure cos(&pi;u) Stroke Only (fCruise=0, fPart=0)</span>
+        <input type="checkbox" id="chk-t1b" />
+      </label>
+      <label class="toggle-row">
+        <span>T2: Medium-Only Drive (Zero C1 Perception)</span>
+        <input type="checkbox" id="chk-t2" />
+      </label>
+      <label class="toggle-row">
+        <span>T3: Scripted Life &amp; Crowd Choke OFF (life=1)</span>
+        <input type="checkbox" id="chk-t3" />
+      </label>
+      <label class="toggle-row">
+        <span>T4: Live Conservation &amp; Pocket Telemetry</span>
+        <input type="checkbox" id="chk-t4" checked />
+      </label>
+      <button id="btn-reseed" style="margin-top:2px;">Re-seed Current Preset</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Presets / Test Bench</div>
+      <div class="btn-grid">
+        <button id="btn-single">1. Single 1.5-Sine</button>
+        <button id="btn-pair-straight">2. Pair (Straight)</button>
+        <button id="btn-pair-sync">3. Pair (120&deg; Sync)</button>
+        <button id="btn-chain-straight" class="active">4. Chain (5 Straight)</button>
+        <button id="btn-chain-overlap">5. Chain (Tip-Overlap)</button>
+        <button id="btn-ring">6. Closed Ring (12)</button>
+        <button id="btn-headon">7. Head-On Bounce</button>
+        <button id="btn-soup">8. Pure Soup (160)</button>
+        <button id="btn-clear">Clear Grid</button>
+        <button id="btn-freeze-spawn">Stop Spawn (0)</button>
+        <button id="btn-pause">Pause (P)</button>
+        <button id="btn-zoom" class="active">Zoom Out (Space)</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">1.5-Sine Fourier Body</div>
+      <div class="control">
+        <div class="control-header"><span>Lifespan (isolated)</span><span class="control-val" id="val-lifespan">2.0 s</span></div>
+        <input type="range" id="sl-lifespan" min="0.5" max="8.0" step="0.1" value="2.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Stroke Drive</span><span class="control-val" id="val-strokedrive">5.0</span></div>
+        <input type="range" id="sl-strokedrive" min="1.0" max="12.0" step="0.1" value="5.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Flap Frequency</span><span class="control-val" id="val-freq">2.4 Hz</span></div>
+        <input type="range" id="sl-freq" min="1.0" max="5.0" step="0.1" value="2.4" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>1.5-Sine Wave Amp</span><span class="control-val" id="val-waveamp">0.34</span></div>
+        <input type="range" id="sl-waveamp" min="0.06" max="0.55" step="0.02" value="0.34" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Spontaneous Spawn Rate</span><span class="control-val" id="val-spawn">0.00</span></div>
+        <input type="range" id="sl-spawn" min="0.0" max="0.40" step="0.01" value="0.00" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Viscoelastic Lattice (320 × 200)</div>
+      <div class="control">
+        <div class="control-header"><span>Bulk Stiffness (K)</span><span class="control-val" id="val-stiff">48.0</span></div>
+        <input type="range" id="sl-stiff" min="8.0" max="100.0" step="1.0" value="48.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Shear Rigidity (&mu;)</span><span class="control-val" id="val-shear">12.0</span></div>
+        <input type="range" id="sl-shear" min="0.0" max="40.0" step="0.5" value="12.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Vacuum Heaviness (&rho;₀)</span><span class="control-val" id="val-heavy">2.0</span></div>
+        <input type="range" id="sl-heavy" min="0.5" max="8.0" step="0.1" value="2.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Bird &rarr; Lattice Stress</span><span class="control-val" id="val-push">30.0</span></div>
+        <input type="range" id="sl-push" min="4.0" max="64.0" step="1.0" value="30.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Bulk Wave Damping (&gamma;<sub>B</sub>)</span><span class="control-val" id="val-bulkdamp">2.20</span></div>
+        <input type="range" id="sl-bulkdamp" min="0.3" max="6.0" step="0.05" value="2.20" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Shear/Curl Damping (&gamma;<sub>S</sub>)</span><span class="control-val" id="val-sheardamp">0.75</span></div>
+        <input type="range" id="sl-sheardamp" min="0.1" max="4.0" step="0.05" value="0.75" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Galerkin / APIC Modal Coupling</div>
+      <div class="control">
+        <div class="control-header"><span>Wingtip Phase Sync</span><span class="control-val" id="val-tipsync">1.20</span></div>
+        <input type="range" id="sl-tipsync" min="0.0" max="3.0" step="0.05" value="1.20" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Elastic Wave &rarr; Mode</span><span class="control-val" id="val-wavesync">0.00</span></div>
+        <input type="range" id="sl-wavesync" min="0.0" max="2.0" step="0.05" value="0.00" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Asym Twist Mode Drive</span><span class="control-val" id="val-twist">1.00</span></div>
+        <input type="range" id="sl-twist" min="0.0" max="3.0" step="0.05" value="1.00" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Strain Gradient Steer (-&nabla;P)</span><span class="control-val" id="val-psteer">3.0</span></div>
+        <input type="range" id="sl-psteer" min="0.0" max="6.0" step="0.1" value="3.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Flow &amp; Curl Torque</span><span class="control-val" id="val-flowtorque">1.4</span></div>
+        <input type="range" id="sl-flowtorque" min="0.0" max="5.0" step="0.1" value="1.4" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Wave Curl Torque (L<sub>wave</sub>)</span><span class="control-val" id="val-wavetorque">1.20</span></div>
+        <input type="range" id="sl-wavetorque" min="0.0" max="4.0" step="0.05" value="1.20" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Display</div>
+      <label class="toggle-row">
+        <span>Show Vacuum Strain (&delta;&rho;)</span>
+        <input type="checkbox" id="chk-foam" checked />
+      </label>
+      <label class="toggle-row">
+        <span>Show Elastic Lattice (s)</span>
+        <input type="checkbox" id="chk-flow" checked />
+      </label>
+      <label class="toggle-row">
+        <span>Show Curl / Vorticity (&nabla;&times;v)</span>
+        <input type="checkbox" id="chk-curl" checked />
+      </label>
+      <label class="toggle-row">
+        <span>Show World Grid (zoomed)</span>
+        <input type="checkbox" id="chk-grid" checked />
+      </label>
+      <div class="legend" style="margin-top:4px;">
+        <div class="legend-item"><span class="swatch" style="background:#f07d32;"></span>Isolated 1.5-sine standing wave (M &harr; W)</div>
+        <div class="legend-item"><span class="swatch" style="background:#3dd6c6;"></span>Coupled 1.5-sine body (zero-crossing nodes shown)</div>
+        <div class="legend-item"><span class="swatch" style="background:#ffe066;"></span>Drafting in stretched blue wing wake (sustained)</div>
+        <div class="legend-item"><span class="swatch" style="background:#0aa6f0;"></span>Stretched vacuum channels &amp; wells (&delta;&rho; &lt; 0)</div>
+        <div class="legend-item"><span class="swatch" style="background:#f59e2d;"></span>Compressed bow &amp; wingtip flanks (&delta;&rho; &gt; 0)</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const MAX_BIRDS = 256;
+  const WORLD_W = 80.0;
+  const WORLD_H = 50.0;
+  const FMX = 320;
+  const FMY = 200;
+  const canvas = document.getElementById('glcanvas');
+  const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
+  if (!gl) {
+    alert('WebGL2 is required.');
+    return;
+  }
+  const extFloat = gl.getExtension('EXT_color_buffer_float');
+  if (!extFloat) {
+    alert('EXT_color_buffer_float is required.');
+    return;
+  }
+  const extFloatBlend = gl.getExtension('EXT_float_blend');
+
+  // --- Parameters ---
+  const params = {
+    lifespan: 2.0,
+    strokeDrive: 5.0,
+    freq: 2.4,
+    waveAmp: 0.34,
+    spawn: 0.0,
+    bulkStiff: 48.0,
+    shearRigid: 12.0,
+    heaviness: 2.0,
+    birdPush: 30.0,
+    bulkDamp: 2.20,
+    shearDamp: 0.75,
+    tipSync: 1.20,
+    waveSync: 0.00,
+    twistDrive: 1.00,
+    pressSteer: 3.0,
+    flowTorque: 1.4,
+    waveTorque: 1.20,
+    showFoam: true,
+    showFlow: true,
+    showCurl: true,
+    showGrid: true,
+    ablateT1: false,
+    ablateT1b: false,
+    ablateT2: false,
+    ablateT3: false,
+    showTelemetry: true,
+    activePreset: 'chain-straight',
+    paused: false,
+    zoomed: true,
+    zoomLevel: 3.0,
+    zoomCenter: [WORLD_W * 0.5, WORLD_H * 0.5],
+    modeName: '4. Chain (5 Straight)'
+  };
+
+  // --- GL Helpers ---
+  function compileShader(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      const log = gl.getShaderInfoLog(s);
+      console.error(log, src);
+      throw new Error(log);
+    }
+    return s;
+  }
+
+  function createProgram(vsSrc, fsSrc) {
+    const p = gl.createProgram();
+    gl.attachShader(p, compileShader(gl.VERTEX_SHADER, vsSrc));
+    gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fsSrc));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      const log = gl.getProgramInfoLog(p);
+      console.error(log);
+      throw new Error(log);
+    }
+    return p;
+  }
+
+  function createFloatTex(w, h, useHalf = false) {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    if (useHalf) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    } else {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, null);
+    }
+    return tex;
+  }
+
+  function createFBO(textures) {
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    const bufs = [];
+    for (let i = 0; i < textures.length; i++) {
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, textures[i], 0);
+      bufs.push(gl.COLOR_ATTACHMENT0 + i);
+    }
+    gl.drawBuffers(bufs);
+    const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    if (status !== gl.FRAMEBUFFER_COMPLETE) {
+      throw new Error('FBO incomplete: ' + status);
+    }
+    return fbo;
+  }
+
+  const quadBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+  const QUAD_VS = `#version 300 es
+  in vec2 aPos;
+  out vec2 vUV;
+  void main() {
+    vUV = aPos * 0.5 + 0.5;
+    gl_Position = vec4(aPos, 0.0, 1.0);
+  }`;
+
+  const COMMON_GLSL = `
+  const int MAX_BIRDS = ${MAX_BIRDS};
+  const vec2 WORLD = vec2(${WORLD_W.toFixed(1)}, ${WORLD_H.toFixed(1)});
+  const ivec2 FOAM = ivec2(${FMX}, ${FMY});
+  const float H_MED = 0.25;
+  const float PI = 3.14159265359;
+  const float TAU = 6.28318530718;
+
+  ivec2 wrapFoam(ivec2 c) {
+    return ((c % FOAM) + FOAM) % FOAM;
+  }
+
+  vec2 wrapPos(vec2 p) {
+    return mod(mod(p, WORLD) + WORLD, WORLD);
+  }
+
+  vec2 wrapDelta(vec2 d) {
+    d.x -= WORLD.x * floor(d.x / WORLD.x + 0.5);
+    d.y -= WORLD.y * floor(d.y / WORLD.y + 0.5);
+    return d;
+  }
+
+  uint hashUint(uint x) {
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+  }
+
+  float rand01(uint seed) {
+    return float(hashUint(seed) >> 8) / 16777216.0;
+  }
+
+  // Exact 7-point DFT zero-mean pure cosine wave (flat horizontal wingtips) & orthogonal twist mode
+  float phiS(float u) {
+    return cos(PI * u);
+  }
+  float dPhiS_du(float u) {
+    return -PI * sin(PI * u);
+  }
+  float phiA(float u) {
+    return sin(PI * u);
+  }
+  float dPhiA_du(float u) {
+    return PI * cos(PI * u);
+  }
+
+  float elasticPressNorm(float d) {
+    float dc = clamp(d, -0.85, 0.85);
+    if (dc >= 0.0) {
+      return dc + 2.5 * dc * dc + 16.0 * dc * dc * dc;
+    }
+    return 0.85 * dc;
+  }
+
+  float localHeaviness(float d, float rho0) {
+    return rho0 * clamp(1.0 + 1.8 * clamp(d, -0.85, 0.85), 0.30, 3.0);
+  }
+
+  vec4 sampleMedTex(sampler2D tex, vec2 worldPos) {
+    vec2 probeTex = worldPos / H_MED - 0.5;
+    ivec2 b0 = ivec2(floor(probeTex));
+    vec2 f = fract(probeTex);
+    vec4 f00 = texelFetch(tex, wrapFoam(b0), 0);
+    vec4 f10 = texelFetch(tex, wrapFoam(b0 + ivec2(1, 0)), 0);
+    vec4 f01 = texelFetch(tex, wrapFoam(b0 + ivec2(0, 1)), 0);
+    vec4 f11 = texelFetch(tex, wrapFoam(b0 + ivec2(1, 1)), 0);
+    return mix(mix(f00, f10, f.x), mix(f01, f11, f.x), f.y);
+  }
+  `;
+
+  // --- PASS 0: Instanced Additive P2G Force Splat from Extended 1.5-Sine Bodies ---
+  const P2G_VS = `#version 300 es
+  in vec2 aQuad;
+  uniform sampler2D uBirdA;
+  uniform sampler2D uBirdB;
+  uniform sampler2D uBirdC;
+
+  out vec2 vWorldPos;
+  out vec2 vCenter;
+  out vec4 vA;
+  out vec4 vB;
+  out vec4 vC;
+
+  ${COMMON_GLSL}
+
+  void main() {
+    int birdIdx = gl_InstanceID / 9;
+    int tileIdx = gl_InstanceID - birdIdx * 9;
+    int tx = (tileIdx % 3) - 1;
+    int ty = (tileIdx / 3) - 1;
+
+    vec4 bB = texelFetch(uBirdB, ivec2(birdIdx, 0), 0);
+    if (bB.r <= 0.001) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+
+    vec4 bA = texelFetch(uBirdA, ivec2(birdIdx, 0), 0);
+    vec4 bC = texelFetch(uBirdC, ivec2(birdIdx, 0), 0);
+    float size = bB.g;
+    float L = 1.25 * size;
+    float halfBox = 2.0 * L;
+
+    vec2 bCenter = bA.rg + vec2(float(tx), float(ty)) * WORLD;
+    if (bCenter.x + halfBox < 0.0 || bCenter.x - halfBox > WORLD.x ||
+        bCenter.y + halfBox < 0.0 || bCenter.y - halfBox > WORLD.y) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+
+    vec2 wp = bCenter + aQuad * halfBox;
+    vWorldPos = wp;
+    vCenter = bCenter;
+    vA = bA;
+    vB = bB;
+    vC = bC;
+    gl_Position = vec4((wp / WORLD) * 2.0 - 1.0, 0.0, 1.0);
+  }`;
+
+  const P2G_FS = `#version 300 es
+  precision highp float;
+  in vec2 vWorldPos;
+  in vec2 vCenter;
+  in vec4 vA;
+  in vec4 vB;
+  in vec4 vC;
+
+  uniform float uFreq;
+  uniform float uWaveAmp;
+  uniform float uBirdPush;
+  uniform float uAblateT1;
+  uniform float uAblateT1b;
+
+  out vec4 outForce;
+
+  ${COMMON_GLSL}
+
+  void main() {
+    float life = vB.r;
+    if (life <= 0.001) discard;
+
+    float size = vB.g;
+    float vAxial = vA.a;
+    float omega = TAU * uFreq;
+    float qs = vB.b;
+    float vqsNorm = clamp(vB.a / max(omega, 0.5), -1.25, 1.25);
+    float qa = vC.r;
+    float vqaNorm = clamp(vC.g / max(omega, 0.5), -1.25, 1.25);
+    float omegaBody = vC.b;
+
+    vec2 dir = vec2(cos(vA.b), sin(vA.b));
+    vec2 perp = vec2(-dir.y, dir.x);
+    float L = 1.25 * size;
+    float sig = 0.34 * size;
+    float invTwoSig2 = 0.5 / (sig * sig);
+
+    float cruiseAmt = smoothstep(0.45, 1.55, vAxial);
+    float lifeMask = smoothstep(0.0, 0.25, life);
+
+    vec2 forceAcc = vec2(0.0);
+    float energyAcc = 0.0;
+
+    for (int k = 0; k < 7; k++) {
+      float u = (float(k) - 3.0) * (2.0 / 7.0);
+      float ps = phiS(u);
+      float pa = phiA(u);
+      float yOff = uWaveAmp * size * (qs * ps + qa * pa) + 0.06 * cruiseAmt * size * (1.0 - u * u);
+      float dy_du = uWaveAmp * size * (qs * dPhiS_du(u) + qa * dPhiA_du(u)) - 0.12 * cruiseAmt * size * u;
+      float yDotNorm = uWaveAmp * (vqsNorm * ps + vqaNorm * pa);
+
+      vec2 xk = vCenter + perp * (u * L) + dir * yOff;
+      vec2 d = vWorldPos - xk;
+      float r2 = dot(d, d);
+      if (r2 > 1.8 * size * size) continue;
+
+      float wk = exp(-r2 * invTwoSig2);
+      vec2 nHat = normalize(dir - (dy_du / L) * perp);
+
+      // Zero-mean 1.5-sine normal flap impulse
+      vec2 fStroke = nHat * (yDotNorm * (1.05 - 0.35 * cruiseAmt) * uBirdPush);
+
+      // APIC cruise & differential rotational push + gentle twin-wing parting during cruise
+      float t1 = max(uAblateT1, uAblateT1b);
+      float vLocal = vAxial - omegaBody * (u * L);
+      float wingEnv = mix(0.35 + 0.65 * smoothstep(0.15, 0.55, abs(u)), 1.0, t1);
+      float constPush = mix(0.16, 0.0, t1);
+      vec2 fCruise = nHat * ((0.30 * vLocal + 0.20 * max(yDotNorm, 0.0) + constPush) * cruiseAmt * wingEnv * uBirdPush);
+      if (uAblateT1b > 0.5) fCruise = vec2(0.0);
+      vec2 fPart = perp * (u * (0.22 + 0.28 * cruiseAmt) * (0.75 + 0.30 * abs(yDotNorm)) * uBirdPush) * (1.0 - t1);
+
+      forceAcc += (fStroke + fCruise + fPart) * (wk * lifeMask / 3.2);
+      energyAcc += (0.40 + 0.60 * cruiseAmt) * (wk * lifeMask / 3.5);
+    }
+
+    outForce = vec4(forceAcc, energyAcc, 0.0);
+  }`;
+
+  // --- PASS 1: Staggered-Face 2D Viscoelastic Lattice (Bulk vs. Shear/Curl Damping) ---
+  const MEDIUM_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uMedA;    // (s.x, s.y, v.x, v.y)
+  uniform sampler2D uMedB;    // (deltaRho, pressNorm, curlV, energyE)
+  uniform sampler2D uForceTex;
+  uniform float uDt;
+  uniform float uBulkStiff;
+  uniform float uShearRigid;
+  uniform float uHeaviness;
+  uniform float uBulkDamp;
+  uniform float uShearDamp;
+
+  layout(location = 0) out vec4 outMedA;
+  layout(location = 1) out vec4 outMedB;
+
+  ${COMMON_GLSL}
+
+  vec2 faceStressX(vec2 sL, vec2 sR, vec2 sLU, vec2 sLD, vec2 sRU, vec2 sRD, float eFace) {
+    float dsx_dx = (sR.x - sL.x) / H_MED;
+    float dsy_dx = (sR.y - sL.y) / H_MED;
+    float dsy_dy = 0.25 * ((sLU.y - sLD.y) + (sRU.y - sRD.y)) / H_MED;
+    float dsx_dy = 0.25 * ((sLU.x - sLD.x) + (sRU.x - sRD.x)) / H_MED;
+    float dRho = -(dsx_dx + dsy_dy);
+    float P = uBulkStiff * elasticPressNorm(dRho) + 1.35 * eFace;
+    float sigma_xx = -P + uShearRigid * (dsx_dx - dsy_dy);
+    float sigma_yx = uShearRigid * (dsy_dx + dsx_dy);
+    return vec2(sigma_xx, sigma_yx);
+  }
+
+  vec2 faceStressY(vec2 sD, vec2 sU, vec2 sDR, vec2 sDL, vec2 sUR, vec2 sUL, float eFace) {
+    float dsy_dy = (sU.y - sD.y) / H_MED;
+    float dsx_dy = (sU.x - sD.x) / H_MED;
+    float dsx_dx = 0.25 * ((sDR.x - sDL.x) + (sUR.x - sUL.x)) / H_MED;
+    float dsy_dx = 0.25 * ((sDR.y - sDL.y) + (sUR.y - sUL.y)) / H_MED;
+    float dRho = -(dsx_dx + dsy_dy);
+    float P = uBulkStiff * elasticPressNorm(dRho) + 1.35 * eFace;
+    float sigma_yy = -P + uShearRigid * (dsy_dy - dsx_dx);
+    float sigma_xy = uShearRigid * (dsx_dy + dsy_dx);
+    return vec2(sigma_xy, sigma_yy);
+  }
+
+  void main() {
+    ivec2 fCell = ivec2(floor(gl_FragCoord.xy));
+
+    vec4 mAC  = texelFetch(uMedA, fCell, 0);
+    vec4 mAPX = texelFetch(uMedA, wrapFoam(fCell + ivec2( 1,  0)), 0);
+    vec4 mANX = texelFetch(uMedA, wrapFoam(fCell + ivec2(-1,  0)), 0);
+    vec4 mAPY = texelFetch(uMedA, wrapFoam(fCell + ivec2( 0,  1)), 0);
+    vec4 mANY = texelFetch(uMedA, wrapFoam(fCell + ivec2( 0, -1)), 0);
+    vec4 mAPP = texelFetch(uMedA, wrapFoam(fCell + ivec2( 1,  1)), 0);
+    vec4 mAPN = texelFetch(uMedA, wrapFoam(fCell + ivec2( 1, -1)), 0);
+    vec4 mANP = texelFetch(uMedA, wrapFoam(fCell + ivec2(-1,  1)), 0);
+    vec4 mANN = texelFetch(uMedA, wrapFoam(fCell + ivec2(-1, -1)), 0);
+
+    vec2 sC = mAC.rg, sPX = mAPX.rg, sNX = mANX.rg, sPY = mAPY.rg, sNY = mANY.rg;
+    vec2 sPP = mAPP.rg, sPN = mAPN.rg, sNP = mANP.rg, sNN = mANN.rg;
+    vec2 vC = mAC.ba, vPX = mAPX.ba, vNX = mANX.ba, vPY = mAPY.ba, vNY = mANY.ba;
+    vec2 vPP = mAPP.ba, vPN = mAPN.ba, vNP = mANP.ba, vNN = mANN.ba;
+
+    vec4 mBC  = texelFetch(uMedB, fCell, 0);
+    vec4 mBPX = texelFetch(uMedB, wrapFoam(fCell + ivec2( 1,  0)), 0);
+    vec4 mBNX = texelFetch(uMedB, wrapFoam(fCell + ivec2(-1,  0)), 0);
+    vec4 mBPY = texelFetch(uMedB, wrapFoam(fCell + ivec2( 0,  1)), 0);
+    vec4 mBNY = texelFetch(uMedB, wrapFoam(fCell + ivec2( 0, -1)), 0);
+    float eC = mBC.a, ePX = mBPX.a, eNX = mBNX.a, ePY = mBPY.a, eNY = mBNY.a;
+
+    vec2 stPX = faceStressX(sC,  sPX, sPY, sNY, sPP, sPN, 0.5 * (eC + ePX));
+    vec2 stNX = faceStressX(sNX, sC,  sNP, sNN, sPY, sNY, 0.5 * (eC + eNX));
+    vec2 stPY = faceStressY(sC,  sPY, sPX, sNX, sPP, sNP, 0.5 * (eC + ePY));
+    vec2 stNY = faceStressY(sNY, sC,  sPN, sNN, sPX, sNX, 0.5 * (eC + eNY));
+
+    vec2 fElastic = vec2(
+      (stPX.x - stNX.x) + (stPY.x - stNY.x),
+      (stPX.y - stNX.y) + (stPY.y - stNY.y)
+    ) / H_MED;
+
+    float deltaRhoC = -((sPX.x - sNX.x) + (sPY.y - sNY.y)) / (2.0 * H_MED);
+    float curlV     = ((vPX.y - vNX.y) - (vPY.x - vNY.x)) / (2.0 * H_MED);
+    float shearMag  = length(vec2(
+      (sPX.x - sNX.x) - (sPY.y - sNY.y),
+      (sPX.y - sNX.y) + (sPY.x - sNY.x)
+    )) / (2.0 * H_MED);
+
+    vec4 fIn = texelFetch(uForceTex, fCell, 0);
+    vec2 forceSum = fIn.rg;
+    float birdEnergy = fIn.b;
+
+    float rhoEff = localHeaviness(deltaRhoC, uHeaviness);
+    float cLocal = sqrt(max(uBulkStiff + uShearRigid, 0.5) / max(rhoEff, 0.15));
+
+    // Separate irrotational bulk viscosity grad(div v) from rotational shear diffusion lap(v)
+    float d2vx_dx2  = vPX.x - 2.0 * vC.x + vNX.x;
+    float d2vy_dy2  = vPY.y - 2.0 * vC.y + vNY.y;
+    float d2vy_dxdy = 0.25 * (vPP.y - vPN.y - vNP.y + vNN.y);
+    float d2vx_dxdy = 0.25 * (vPP.x - vPN.x - vNP.x + vNN.x);
+    vec2 gradDivV = vec2(d2vx_dx2 + d2vy_dxdy, d2vy_dy2 + d2vx_dxdy);
+    vec2 lapV     = (vPX + vNX + vPY + vNY) - 4.0 * vC;
+
+    float gammaEff = mix(uShearDamp, uBulkDamp, smoothstep(0.01, 0.14, abs(deltaRhoC)))
+                   * mix(1.0, 0.55, smoothstep(0.0, 0.25, -deltaRhoC))
+                   * (1.0 + 0.6 * max(deltaRhoC, 0.0));
+
+    vec2 accel = (fElastic + forceSum - 0.04 * uBulkStiff * sC) / rhoEff
+               + gradDivV * (0.08 * cLocal / H_MED)
+               + lapV * (0.015 * cLocal / H_MED)
+               - gammaEff * vC;
+
+    vec2 vNew = vC + accel * uDt;
+    float vLen = length(vNew);
+    if (vLen > 12.0) vNew *= 12.0 / vLen;
+
+    vec2 sNew = sC + vNew * uDt;
+    float sLen = length(sNew);
+    if (sLen > 1.5) sNew *= 1.5 / sLen;
+
+    float eInst = clamp(0.14 * dot(vNew, vNew) + 0.25 * shearMag * shearMag + 0.55 * birdEnergy, 0.0, 2.5);
+    float lapE = (ePX + eNX + ePY + eNY) - 4.0 * eC;
+    float eNew = clamp(eC + uDt * (0.55 * lapE + 0.85 * (eInst - eC)), 0.0, 2.0);
+
+    outMedA = vec4(sNew, vNew);
+    outMedB = vec4(deltaRhoC, elasticPressNorm(deltaRhoC), curlV, eNew);
+  }`;
+
+  // --- PASS 2: 7-Point Galerkin / APIC Modal Bird Physics (128 x 1) ---
+  const BIRD_UPDATE_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uBirdA;
+  uniform sampler2D uBirdB;
+  uniform sampler2D uBirdC;
+  uniform sampler2D uMedA;
+  uniform sampler2D uMedB;
+  uniform float uDt;
+  uniform float uLifespan;
+  uniform float uFreq;
+  uniform float uStrokeDrive;
+  uniform float uWaveAmp;
+  uniform float uPressSteer;
+  uniform float uFlowTorque;
+  uniform float uTipSync;
+  uniform float uWaveSync;
+  uniform float uTwistDrive;
+  uniform float uWaveTorque;
+  uniform float uAblateT2;
+  uniform float uAblateT3;
+  uniform float uSpawnRate;
+  uniform float uFrame;
+  uniform int uPaintSlot;
+  uniform vec2 uPaintPos;
+  uniform float uPaintAngle;
+
+  layout(location = 0) out vec4 outA;
+  layout(location = 1) out vec4 outB;
+  layout(location = 2) out vec4 outC;
+
+  ${COMMON_GLSL}
+
+  vec2 latticeDrive(vec4 mA) {
+    return 6.2 * mA.rg + 0.30 * mA.ba;
+  }
+
+  void main() {
+    int idx = int(floor(gl_FragCoord.x));
+    float omega = TAU * uFreq;
+
+    if (idx == uPaintSlot) {
+      outA = vec4(wrapPos(uPaintPos), mod(uPaintAngle + TAU, TAU), 1.9);
+      outB = vec4(1.0, 1.0, 0.2, omega * 0.9);
+      outC = vec4(0.0);
+      return;
+    }
+
+    vec4 bA = texelFetch(uBirdA, ivec2(idx, 0), 0);
+    vec4 bB = texelFetch(uBirdB, ivec2(idx, 0), 0);
+    vec4 bC = texelFetch(uBirdC, ivec2(idx, 0), 0);
+
+    float life = bB.r;
+    if (life <= 0.001) {
+      if (uSpawnRate > 0.0) {
+        uint seed = uint(uFrame) * 1664525u + uint(idx) * 374761393u + 1013904223u;
+        float r = rand01(seed);
+        if (r < uSpawnRate * 2.2 * uDt) {
+          vec2 candPos = vec2(rand01(seed + 1u) * WORLD.x, rand01(seed + 2u) * WORLD.y);
+          bool clear = true;
+          for (int j = 0; j < MAX_BIRDS; j++) {
+            vec4 jB = texelFetch(uBirdB, ivec2(j, 0), 0);
+            if (jB.r <= 0.001) continue;
+            vec4 jA = texelFetch(uBirdA, ivec2(j, 0), 0);
+            float d = length(wrapDelta(jA.rg - candPos));
+            float moat = abs(jA.a) > 0.8 ? 4.0 : 1.75;
+            if (d < moat) {
+              clear = false;
+              break;
+            }
+          }
+          if (clear) {
+            float ang = rand01(seed + 3u) * TAU;
+            float phi = rand01(seed + 4u) * TAU;
+            float sz = mix(0.85, 1.15, rand01(seed + 5u));
+            outA = vec4(candPos, ang, 0.0);
+            outB = vec4(1.0, sz, cos(phi), omega * sin(phi));
+            outC = vec4(0.0);
+            return;
+          }
+        }
+      }
+      outA = vec4(0.0);
+      outB = vec4(0.0);
+      outC = vec4(0.0);
+      return;
+    }
+
+    vec2 pos = bA.rg;
+    float angle = bA.b;
+    float vAxial = bA.a;
+    float size = bB.g;
+    float qs = bB.b;
+    float vqs = bB.a;
+    float qa = bC.r;
+    float vqa = bC.g;
+    float omegaBody = bC.b;
+
+    vec2 dir = vec2(cos(angle), sin(angle));
+    vec2 perp = vec2(-dir.y, dir.x);
+    float L = 1.25 * size;
+    float cruiseAmt = smoothstep(0.45, 1.55, vAxial);
+
+    // 1) 7-Point Galerkin Sampling across the 1.5-Sine Fourier Body + Forward Wake Horizon
+    float vProjS = 0.0;
+    float normS = 0.0;
+    float fProjA = 0.0;
+    float normA = 0.0;
+    float tauPress = 0.0;
+    vec2 uFwdFlow = vec2(0.0);
+    float avgCurl = 0.0;
+    float minBlue = 1.0;
+    float maxAheadStream = -99.0;
+
+    for (int k = 0; k < 7; k++) {
+      float u = (float(k) - 3.0) * (2.0 / 7.0);
+      float ps = phiS(u);
+      float pa = phiA(u);
+      float yOff = uWaveAmp * size * (qs * ps + qa * pa) + 0.06 * cruiseAmt * size * (1.0 - u * u);
+
+      vec2 xk    = pos + perp * (u * L) + dir * yOff;
+      vec2 xFwdk = pos + perp * (u * L) + dir * (1.40 * size);
+
+      vec4 mAk    = sampleMedTex(uMedA, xk);
+      vec4 mBk    = sampleMedTex(uMedB, xk);
+      vec4 mFwdAk = sampleMedTex(uMedA, xFwdk);
+      vec4 mFwdBk = sampleMedTex(uMedB, xFwdk);
+
+      float vMedAxk = dot(mAk.ba, dir);
+      vec2 wFwdk    = latticeDrive(mFwdAk);
+
+      vProjS += vMedAxk * ps;
+      normS  += ps * ps;
+
+      float asymDrive = vMedAxk * 0.65 - mFwdBk.g * 1.40 - clamp(mFwdBk.r, -0.28, 0.24) * 2.20;
+      fProjA += asymDrive * pa;
+      normA  += pa * pa;
+
+      tauPress += -u * (0.90 * mFwdBk.g + 1.60 * clamp(mFwdBk.r, -0.26, 0.22));
+      uFwdFlow += wFwdk / 7.0;
+      avgCurl  += mBk.b / 7.0;
+
+      minBlue = min(minBlue, mFwdBk.r);
+      maxAheadStream = max(maxAheadStream, dot(wFwdk, dir));
+    }
+
+    vec4 mHereA    = sampleMedTex(uMedA, pos);
+    vec4 mHereB    = sampleMedTex(uMedB, pos);
+    vec4 mFrontB   = sampleMedTex(uMedB, pos + dir * (0.75 * size));
+    vec4 mBackB    = sampleMedTex(uMedB, pos - dir * (0.75 * size));
+    vec4 mBackA    = sampleMedTex(uMedA, pos - dir * (0.75 * size));
+    vec4 mBackFarA = sampleMedTex(uMedA, pos - dir * (1.35 * size));
+
+    float rhoFront = 1.0 + mFrontB.r;
+    float rhoHere  = 1.0 + mHereB.r;
+    float pNormFront = mFrontB.g;
+    float pNormBack  = mBackB.g;
+
+    vec2 wHere    = latticeDrive(mHereA);
+    vec2 wBack    = latticeDrive(mBackA);
+    vec2 wBackFar = latticeDrive(mBackFarA);
+
+    // 2) Update Symmetric 1.5-Sine Mode (qs, vqs) & Passively Damped Twist Mode (qa, vqa)
+    float r2S = qs * qs + (vqs / max(omega, 0.5)) * (vqs / max(omega, 0.5));
+    float vRelS = (vProjS / max(normS, 0.1)) * 2.4 - (vqs / max(omega, 0.5)) * 0.25;
+    float aqs = -omega * omega * qs
+              + 3.4 * omega * (1.0 - r2S) * vqs
+              + (uWaveSync * omega * 1.8) * clamp(vRelS, -1.5, 1.5);
+    vqs += aqs * uDt;
+    qs = clamp(qs + vqs * uDt, -1.25, 1.25);
+
+    float fAnti = clamp(fProjA / max(normA, 0.1), -1.5, 1.5);
+    float aqa = -omega * omega * qa
+              - (2.0 * 0.16 * omega) * vqa
+              + (uTwistDrive * omega * omega * 0.55) * fAnti * smoothstep(0.25, 0.90, abs(vAxial));
+    vqa += aqa * uDt;
+    qa = clamp(qa + vqa * uDt, -0.95, 0.95);
+    vqa = clamp(vqa, -0.95 * omega, 0.95 * omega);
+
+    float vqsNorm = clamp(vqs / max(omega, 0.5), -1.25, 1.25);
+    float vqaNorm = clamp(vqa / max(omega, 0.5), -0.95, 0.95);
+    float L_wave = clamp(qs * vqaNorm - vqsNorm * qa, -1.0, 1.0);
+    float strokeVelCenter = clamp(vqsNorm * phiS(0.0), -1.25, 1.25);
+    float myPhi = atan(vqs / max(omega, 0.5), qs);
+
+    // 3) Continuous Partner Presence, Phase Sync & Soft Body Separation (zero grid-cell overwrites)
+    float leaderCue     = 0.0;
+    float rearFollower  = 0.0;
+    float closeBlock    = 0.0;
+    float sideCrowd     = 0.0;
+    float leftCrowd     = 0.0;
+    float rightCrowd    = 0.0;
+    float kuraSinSum    = 0.0;
+    float kuraWeightSum = 0.0;
+    vec2  stericPush    = vec2(0.0);
+    float closestFwdDist = 99.0;
+    vec2  closestFwdChord = vec2(0.0);
+    float closestFwdSpeedMatch = 99.0;
+
+    float moveSign = vAxial >= 0.0 ? 1.0 : -1.0;
+    vec2 moveDir = dir * moveSign;
+
+    for (int j = 0; j < MAX_BIRDS; j++) {
+      if (j == idx) continue;
+      vec4 jB = texelFetch(uBirdB, ivec2(j, 0), 0);
+      if (jB.r <= 0.05) continue;
+
+      vec4 jA = texelFetch(uBirdA, ivec2(j, 0), 0);
+      vec2 toN = wrapDelta(jA.rg - pos);
+      float dist = length(toN);
+      if (dist < 0.01 || dist > 5.60) continue;
+
+      vec2 chord = toN / dist;
+      vec2 nDir = vec2(cos(jA.b), sin(jA.b));
+      float aheadDot  = dot(chord, dir);
+      float behindDot = dot(chord, -dir);
+      float alignDot  = dot(dir, nDir);
+      float lifeW     = smoothstep(0.05, 0.35, jB.r);
+      float avgSize   = 0.5 * (size + jB.g);
+
+      float lW = smoothstep(5.40, 3.60, dist)
+               * smoothstep(0.45, 0.80, aheadDot)
+               * smoothstep(0.35, 0.78, alignDot)
+               * smoothstep(0.35, 0.80, jA.a)
+               * lifeW;
+      leaderCue = max(leaderCue, lW);
+
+      float rW = smoothstep(5.40, 3.60, dist)
+               * smoothstep(0.45, 0.80, behindDot)
+               * smoothstep(0.35, 0.78, alignDot)
+               * smoothstep(0.30, 0.78, jA.a)
+               * lifeW;
+      rearFollower = max(rearFollower, rW);
+
+      float pW = smoothstep(4.20 * avgSize, 1.80 * avgSize, dist)
+               * smoothstep(0.30, 0.80, alignDot)
+               * lifeW;
+      if (pW > 0.01 && uTipSync > 0.01) {
+        float jPhi = atan(jB.a / max(omega, 0.5), jB.b);
+        kuraSinSum    += pW * sin(jPhi - myPhi);
+        kuraWeightSum += pW;
+      }
+
+      float bRear  = smoothstep(3.20, 1.85, dist) * smoothstep(0.65, 0.88, behindDot) * smoothstep(0.35, 0.78, alignDot) * lifeW;
+      float bAhead = smoothstep(3.20, 1.85, dist) * smoothstep(0.65, 0.88, aheadDot)  * smoothstep(0.35, 0.78, alignDot) * lifeW;
+      closeBlock = max(closeBlock, max(bRear, bAhead));
+
+      float activeN  = smoothstep(0.45, 1.10, abs(jA.a));
+      float sideSign = dot(chord, perp);
+      float latDist  = smoothstep(3.60, 2.00, dist) * smoothstep(0.50, 0.74, abs(sideSign)) * activeN * lifeW;
+      sideCrowd     += latDist * smoothstep(-0.05, 0.45, alignDot);
+      if (sideSign > 0.0) leftCrowd  += latDist;
+      else                rightCrowd += latDist;
+
+      // Soft solid-body core exclusion (allows wing lobes up to L=1.25 to overlap cleanly)
+      float minSep = 1.55 * avgSize;
+      if (dist < minSep) {
+        float rep = (minSep - dist) / minSep;
+        stericPush -= chord * (rep * 6.0);
+      }
+      if (dot(chord, moveDir) > 0.35 && dist < closestFwdDist) {
+        closestFwdDist = dist;
+        closestFwdChord = chord;
+        if (dot(dir, nDir) > 0.2 && vAxial > 0.0 && jA.a > 0.0) {
+          closestFwdSpeedMatch = jA.a;
+        } else {
+          closestFwdSpeedMatch = 99.0;
+        }
+      }
+    }
+
+    sideCrowd += 2.4 * min(leftCrowd, rightCrowd) + max(leftCrowd + rightCrowd - 2.1, 0.0);
+    float crowdMask = (uAblateT2 > 0.5 || uAblateT3 > 0.5) ? 1.0 : (1.0 / (1.0 + 1.25 * sideCrowd));
+
+    if (kuraWeightSum > 0.01 && uTipSync > 0.01) {
+      float dPhi = clamp((kuraSinSum / kuraWeightSum) * (3.2 * uTipSync) * clamp(kuraWeightSum, 0.0, 1.0) * uDt, -0.35, 0.35);
+      float cK = cos(dPhi), sK = sin(dPhi);
+      float qsOld = qs;
+      float vqn = vqs / max(omega, 0.5);
+      qs  = clamp(cK * qsOld - sK * vqn, -1.25, 1.25);
+      vqs = (sK * qsOld + cK * vqn) * max(omega, 0.5);
+      vqsNorm = clamp(vqs / max(omega, 0.5), -1.25, 1.25);
+      L_wave = clamp(qs * vqaNorm - vqsNorm * qa, -1.0, 1.0);
+      strokeVelCenter = clamp(vqsNorm * phiS(0.0), -1.25, 1.25);
+    }
+
+    // 4) Balanced Axial Propulsion, APIC Angular Torque (omegaBody), & Lifespan
+    float uBackPush = dot(wBackFar, dir);
+    float uAlong    = dot(wHere * 0.40 + wBack * 0.30 + uFwdFlow * 0.30, dir);
+
+    float channelBlue  = smoothstep(-0.008, -0.09, minBlue);
+    float medAheadWake = channelBlue * smoothstep(0.06, 0.42, maxAheadStream);
+    float medRearPush  = smoothstep(0.06, 0.45, uBackPush);
+
+    float aheadDraft  = (uAblateT2 > 0.5) ? medAheadWake : (leaderCue    * mix(0.68, 1.0, medAheadWake) * crowdMask);
+    float rearBrace   = (uAblateT2 > 0.5) ? medRearPush  : (rearFollower * mix(0.70, 1.0, medRearPush)  * crowdMask);
+    float noFrontWall = smoothstep(1.06, 0.995, rhoFront);
+    float ignitGate   = smoothstep(1.50, 0.40, vAxial);
+    float launchPad   = (uAblateT2 > 0.5) ? 0.0          : (closeBlock * noFrontWall * ignitGate * crowdMask);
+
+    float support  = clamp(aheadDraft + rearBrace + 0.70 * launchPad, 0.0, 1.0);
+    float driveCue = clamp(max(aheadDraft * 1.10, rearBrace * 1.00) + 0.08 * min(aheadDraft, rearBrace) + 0.80 * launchPad, 0.0, 1.18);
+
+    float aOsc      = strokeVelCenter * uStrokeDrive * 0.85 * (1.0 - 0.58 * support);
+    float rowPulse  = 0.72 + 0.50 * max(-strokeVelCenter, 0.0);
+    float fwdThrust = uStrokeDrive * (1.35 * driveCue) * rowPulse;
+    float aPress    = -4.5 * (pNormFront - pNormBack) / max(1.20 * size, 0.8);
+
+    float relHeavy = clamp(1.0 + 1.8 * clamp(minBlue, -0.85, 0.85), 0.30, 2.5);
+    float hotLocal = clamp(max(mHereB.r, mFrontB.r), 0.0, 0.85);
+    float birdDrag = 3.0 * mix(0.45, 1.0, smoothstep(0.30, 1.0, relHeavy)) * (1.0 + 1.6 * hotLocal);
+    float aDrag    = -birdDrag * (vAxial - uAlong * mix(0.0, 0.85, support));
+
+    vAxial = clamp(vAxial + (aOsc + fwdThrust + aPress + aDrag) * uDt, -3.4, 3.4);
+
+    if (closestFwdDist < 1.80 * size && closestFwdSpeedMatch < 50.0 && vAxial > 0.0) {
+      float matchFrac = smoothstep(1.80 * size, 1.45 * size, closestFwdDist);
+      if (vAxial > closestFwdSpeedMatch) {
+        vAxial = mix(vAxial, closestFwdSpeedMatch, matchFrac * 0.70);
+      }
+    }
+
+    float steerGate = 0.45 + 0.55 * smoothstep(0.20, 0.90, abs(vAxial));
+    float turnScale = clamp(max(vAxial, 1.2) / 2.2, 0.55, 1.45);
+    float tauP = clamp(tauPress * 0.45, -0.75, 0.75) * uPressSteer * turnScale;
+
+    float backW = 0.25 * (1.0 - smoothstep(0.40, 1.40, vAxial));
+    vec2 uStream = (1.0 - backW) * uFwdFlow + backW * wBack;
+    float uMag = length(uStream);
+    float turnToFlow = 0.0;
+    if (uMag > 0.07) {
+      vec2 uDir = uStream / uMag;
+      if (dot(dir, uDir) > -0.45) {
+        turnToFlow = atan(dir.x * uDir.y - dir.y * uDir.x, dot(dir, uDir));
+      }
+    }
+    float tauF = turnToFlow * uFlowTorque * clamp(uMag, 0.0, 1.0)
+               + clamp(avgCurl, -2.5, 2.5) * (0.20 * uFlowTorque);
+    float tauW = L_wave * (uWaveTorque * 0.65 / max(size, 0.5)) * smoothstep(0.40, 1.40, vAxial);
+    float omegaTarget = (tauP + tauF + tauW) * steerGate;
+    omegaBody += 3.0 * (omegaTarget - omegaBody) * uDt;
+    omegaBody = clamp(omegaBody, -2.5, 2.5);
+    angle = mod(angle + omegaBody * uDt + TAU, TAU);
+    dir = vec2(cos(angle), sin(angle));
+
+    vec2 vel = dir * vAxial + (uAlong * support) * dir * 0.10 + stericPush;
+    if (closestFwdDist < 1.75 * size) {
+      float closing = max(dot(vel, closestFwdChord), 0.0);
+      float brakeFrac = smoothstep(1.75 * size, 1.42 * size, closestFwdDist);
+      vel -= closestFwdChord * (closing * brakeFrac);
+    }
+    vec2 stepMove = vel * uDt;
+    float moveLen = length(stepMove);
+    if (moveLen > 0.35) stepMove *= 0.35 / moveLen;
+    pos = wrapPos(pos + stepMove);
+
+    float decay = uDt / max(uLifespan, 0.2);
+    float fwdCue = smoothstep(0.45, 1.40, vAxial);
+    float draftSustain = (2.4 * decay) * aheadDraft * fwdCue;
+    float rearSustain  = (1.30 * decay) * rearBrace * fwdCue;
+    float stepSustain  = (0.50 * decay) * launchPad * smoothstep(0.20, 0.90, vAxial);
+    float crowdPress   = max(rhoFront - 1.14, 0.0) + 1.2 * max(rhoHere - 1.05, 0.0);
+    float crowdChoke   = 1.35 * max(sideCrowd - 0.75, 0.0);
+    float shockCost    = uDt * (2.2 * crowdPress * (1.0 - 0.35 * support) + crowdChoke);
+    if (uAblateT3 > 0.5) {
+      life = 1.0;
+    } else {
+      life = clamp(life - decay - shockCost + draftSustain + rearSustain + stepSustain, 0.0, 1.0);
+    }
+
+    outA = vec4(pos, angle, vAxial);
+    outB = vec4(life, size, qs, vqs);
+    outC = vec4(qa, vqa, omegaBody, L_wave);
+  }`;
+
+  // --- PASS 3a: Display Elastic Vacuum Lattice, Curl & World Grid ---
+  const DISPLAY_MED_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uMedA;
+  uniform sampler2D uMedB;
+  uniform vec2 uRes;
+  uniform float uZoom;
+  uniform vec2 uZoomCenter;
+  uniform float uShowFoam;
+  uniform float uShowFlow;
+  uniform float uShowCurl;
+  uniform float uShowGrid;
+
+  in vec2 vUV;
+  out vec4 fragColor;
+
+  ${COMMON_GLSL}
+
+  float sampleMacroDeltaRho(vec2 worldPos) {
+    float acc = sampleMedTex(uMedB, worldPos).r * 0.20;
+    const float r1 = 3.0;
+    const float r2 = 6.0;
+    acc += (
+      sampleMedTex(uMedB, worldPos + vec2( r1, 0.0)).r +
+      sampleMedTex(uMedB, worldPos + vec2(-r1, 0.0)).r +
+      sampleMedTex(uMedB, worldPos + vec2(0.0,  r1)).r +
+      sampleMedTex(uMedB, worldPos + vec2(0.0, -r1)).r
+    ) * 0.12;
+    acc += (
+      sampleMedTex(uMedB, worldPos + vec2( r2, 0.0)).r +
+      sampleMedTex(uMedB, worldPos + vec2(-r2, 0.0)).r +
+      sampleMedTex(uMedB, worldPos + vec2(0.0,  r2)).r +
+      sampleMedTex(uMedB, worldPos + vec2(0.0, -r2)).r
+    ) * 0.08;
+    return acc;
+  }
+
+  void main() {
+    float aspect = uRes.x / max(uRes.y, 1.0);
+    float gridAspect = WORLD.x / WORLD.y;
+
+    vec2 viewSize = WORLD / uZoom;
+    if (aspect > gridAspect) viewSize.x = viewSize.y * aspect;
+    else viewSize.y = viewSize.x / aspect;
+
+    vec2 worldPos = uZoomCenter + (vUV - 0.5) * viewSize;
+    float pxSize = viewSize.y / max(uRes.y, 1.0);
+
+    vec3 col = vec3(0.045, 0.055, 0.072);
+
+    if (uZoom <= 1.05 && (worldPos.x < 0.0 || worldPos.x > WORLD.x || worldPos.y < 0.0 || worldPos.y > WORLD.y)) {
+      fragColor = vec4(0.02, 0.025, 0.035, 1.0);
+      return;
+    }
+
+    vec4 mA = sampleMedTex(uMedA, worldPos);
+    vec4 mB = sampleMedTex(uMedB, worldPos);
+    float d = mB.r;
+
+    if (uShowFoam > 0.5) {
+      float bgD = sampleMacroDeltaRho(worldPos);
+      if (bgD < -0.0015) {
+        float bgDip = smoothstep(0.0015, 0.030, -bgD);
+        col = mix(col, vec3(0.05, 0.14, 0.30), bgDip * 0.50);
+      } else if (bgD > 0.0015) {
+        float bgPeak = smoothstep(0.0015, 0.030, bgD);
+        col = mix(col, vec3(0.24, 0.11, 0.03), bgPeak * 0.38);
+      }
+
+      if (d < -0.012) {
+        float dipT = smoothstep(0.012, 0.20, -d);
+        vec3 dipCol = mix(vec3(0.04, 0.30, 0.52), vec3(0.05, 0.72, 0.96), smoothstep(0.0, 0.5, dipT));
+        dipCol = mix(dipCol, vec3(0.10, 0.42, 1.00), smoothstep(0.5, 1.0, dipT));
+        col = mix(col, dipCol, clamp(dipT * 0.88, 0.0, 0.90));
+      } else if (d > 0.012) {
+        float peakT = smoothstep(0.012, 0.15, d);
+        vec3 peakCol = mix(vec3(0.58, 0.24, 0.04), vec3(0.98, 0.52, 0.10), smoothstep(0.0, 0.55, peakT));
+        peakCol = mix(peakCol, vec3(1.00, 0.82, 0.26), smoothstep(0.55, 1.0, peakT));
+        col = mix(col, peakCol, clamp(peakT * 0.90, 0.0, 0.90));
+      }
+    }
+
+    if (uShowCurl > 0.5) {
+      float curlV = mB.b;
+      if (abs(curlV) > 0.15) {
+        float cT = smoothstep(0.15, 2.2, abs(curlV));
+        vec3 cCol = curlV > 0.0 ? vec3(0.22, 0.92, 0.52) : vec3(0.86, 0.32, 0.88);
+        col = mix(col, cCol, clamp(cT * 0.55, 0.0, 0.65));
+      }
+    }
+
+    if (uShowFlow > 0.5) {
+      vec2 matPos = (worldPos - mA.rg * 2.4) * 2.5;
+      vec2 mf = fract(matPos);
+      vec2 me = min(mf, 1.0 - mf);
+      float mDist = min(me.x, me.y);
+      float latAlpha = (1.0 - smoothstep(0.0, pxSize * 2.8, mDist)) * 0.42;
+      vec3 latTint = mix(vec3(0.45, 0.85, 0.90), vec3(1.0, 0.72, 0.35), clamp(d * 3.0 + 0.5, 0.0, 1.0));
+      col = mix(col, latTint, latAlpha);
+    }
+
+    if (uShowGrid > 0.5 && uZoom > 1.5) {
+      vec2 f = fract(worldPos);
+      vec2 edge = min(f, 1.0 - f);
+      float gDist = min(edge.x, edge.y);
+      float gridAlpha = (1.0 - smoothstep(0.0, pxSize * 1.4, gDist)) * smoothstep(1.5, 2.5, uZoom) * 0.20;
+      col = mix(col, vec3(0.32, 0.39, 0.48), gridAlpha);
+    }
+
+    fragColor = vec4(col, 1.0);
+  }`;
+
+  // --- PASS 3b: Instanced 14-Segment 1.5-Sine Fourier Curve Renderer ---
+  const DISPLAY_BIRDS_VS = `#version 300 es
+  in vec2 aQuad;
+  uniform sampler2D uBirdA;
+  uniform sampler2D uBirdB;
+  uniform sampler2D uBirdC;
+  uniform vec2 uRes;
+  uniform float uZoom;
+  uniform vec2 uZoomCenter;
+
+  out vec2 vWorldPos;
+  out vec2 vCenter;
+  out vec4 vA;
+  out vec4 vB;
+  out vec4 vC;
+
+  ${COMMON_GLSL}
+
+  void main() {
+    int birdIdx = gl_InstanceID / 9;
+    int tileIdx = gl_InstanceID - birdIdx * 9;
+    int tx = (tileIdx % 3) - 1;
+    int ty = (tileIdx / 3) - 1;
+
+    vec4 bB = texelFetch(uBirdB, ivec2(birdIdx, 0), 0);
+    if (bB.r <= 0.001) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+
+    vec4 bA = texelFetch(uBirdA, ivec2(birdIdx, 0), 0);
+    vec4 bC = texelFetch(uBirdC, ivec2(birdIdx, 0), 0);
+
+    float aspect = uRes.x / max(uRes.y, 1.0);
+    float gridAspect = WORLD.x / WORLD.y;
+    vec2 viewSize = WORLD / uZoom;
+    if (aspect > gridAspect) viewSize.x = viewSize.y * aspect;
+    else viewSize.y = viewSize.x / aspect;
+
+    float size = bB.g;
+    float L = 1.25 * size;
+    float halfBox = 1.65 * L;
+    vec2 bCenter = bA.rg + vec2(float(tx), float(ty)) * WORLD;
+    vec2 relView = bCenter - uZoomCenter;
+    if (abs(relView.x) > viewSize.x * 0.5 + halfBox ||
+        abs(relView.y) > viewSize.y * 0.5 + halfBox) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+
+    vec2 wp = bCenter + aQuad * halfBox;
+    vWorldPos = wp;
+    vCenter = bCenter;
+    vA = bA;
+    vB = bB;
+    vC = bC;
+    vec2 uvPos = (wp - uZoomCenter) / viewSize + 0.5;
+    gl_Position = vec4(uvPos * 2.0 - 1.0, 0.0, 1.0);
+  }`;
+
+  const DISPLAY_BIRDS_FS = `#version 300 es
+  precision highp float;
+  in vec2 vWorldPos;
+  in vec2 vCenter;
+  in vec4 vA;
+  in vec4 vB;
+  in vec4 vC;
+
+  uniform sampler2D uMedB;
+  uniform vec2 uRes;
+  uniform float uZoom;
+  uniform float uFreq;
+  uniform float uWaveAmp;
+
+  out vec4 fragColor;
+
+  ${COMMON_GLSL}
+
+  float sdSeg(vec2 p, vec2 a, vec2 b) {
+    vec2 pa = p - a, ba = b - a;
+    float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
+    return length(pa - ba * h);
+  }
+
+  void main() {
+    float life = vB.r;
+    if (life <= 0.001) discard;
+    if (uZoom <= 1.05 && (vWorldPos.x < 0.0 || vWorldPos.x > WORLD.x || vWorldPos.y < 0.0 || vWorldPos.y > WORLD.y)) discard;
+
+    float aspect = uRes.x / max(uRes.y, 1.0);
+    float gridAspect = WORLD.x / WORLD.y;
+    vec2 viewSize = WORLD / uZoom;
+    if (aspect > gridAspect) viewSize.x = viewSize.y * aspect;
+    else viewSize.y = viewSize.x / aspect;
+    float pxSize = viewSize.y / max(uRes.y, 1.0);
+
+    float size = vB.g;
+    float L = 1.25 * size;
+    float vAxial = vA.a;
+    float omega = TAU * uFreq;
+    float qs = vB.b;
+    float vqsNorm = clamp(vB.a / max(omega, 0.5), -1.25, 1.25);
+    float qa = vC.r;
+    float vqaNorm = clamp(vC.g / max(omega, 0.5), -1.25, 1.25);
+
+    vec2 dir = vec2(cos(vA.b), sin(vA.b));
+    vec2 perp = vec2(-dir.y, dir.x);
+    vec2 rel = vWorldPos - vCenter;
+    float uLocal = dot(rel, perp) / L;
+    if (abs(uLocal) > 1.15) discard;
+
+    float cruiseAmt = smoothstep(0.45, 1.55, vAxial);
+
+    float wakeMin = 1.0;
+    for (int k = 0; k < 5; k++) {
+      float uk = -0.64 + float(k) * 0.32;
+      vec4 mFwd = sampleMedTex(uMedB, vCenter + perp * (uk * L) + dir * (1.20 * size));
+      wakeMin = min(wakeMin, mFwd.r);
+    }
+    float inBlue = smoothstep(-0.008, -0.065, wakeMin);
+    float gliding = smoothstep(0.40, 1.40, vAxial);
+
+    vec3 cBouncing = vec3(0.95, 0.47, 0.18);
+    vec3 cLeader   = vec3(0.22, 0.85, 0.78);
+    vec3 cDrafting = vec3(1.00, 0.88, 0.38);
+    vec3 baseCol = mix(cBouncing, mix(cLeader, cDrafting, inBlue), gliding);
+
+    float minDist = 99.0;
+    const int SEGS = 16;
+    float uPrev = -1.0;
+    float yPrev = uWaveAmp * size * (qs * phiS(uPrev) + qa * phiA(uPrev)) + 0.06 * cruiseAmt * size * (1.0 - uPrev * uPrev);
+    vec2 pPrev = perp * (uPrev * L) + dir * yPrev;
+
+    for (int s = 1; s <= SEGS; s++) {
+      float uNext = -1.0 + float(s) * (2.0 / float(SEGS));
+      float yNext = uWaveAmp * size * (qs * phiS(uNext) + qa * phiA(uNext)) + 0.06 * cruiseAmt * size * (1.0 - uNext * uNext);
+      vec2 pNext = perp * (uNext * L) + dir * yNext;
+      minDist = min(minDist, sdSeg(rel, pPrev, pNext));
+      pPrev = pNext;
+    }
+
+    float strokeW = max(0.072 * size, pxSize * 1.6);
+    float curveMask = 1.0 - smoothstep(strokeW, strokeW + pxSize * 1.4, minDist);
+
+    float uClamped = clamp(uLocal, -1.0, 1.0);
+    float yDotHere = vqsNorm * phiS(uClamped) + vqaNorm * phiA(uClamped);
+    vec3 curveCol = baseCol * clamp(1.0 + 0.25 * yDotHere, 0.72, 1.28);
+
+    // Subtle nodal dots at pure cosine zero-crossings (u = +-0.5) when zoomed in
+    float nodeMask = 0.0;
+    if (uZoom > 1.8) {
+      float uN1 = 0.5;
+      float yN = uWaveAmp * size * (qs * phiS(uN1) + qa * phiA(uN1)) + 0.06 * cruiseAmt * size * (1.0 - uN1 * uN1);
+      float yN2 = uWaveAmp * size * (qs * phiS(-uN1) + qa * phiA(-uN1)) + 0.06 * cruiseAmt * size * (1.0 - uN1 * uN1);
+      float dN1 = length(rel - (perp * (uN1 * L) + dir * yN));
+      float dN2 = length(rel - (-perp * (uN1 * L) + dir * yN2));
+      float dNode = min(dN1, dN2);
+      float nodeR = max(0.075 * size, pxSize * 1.8);
+      nodeMask = 1.0 - smoothstep(nodeR, nodeR + pxSize * 1.2, dNode);
+    }
+
+    float alpha = max(curveMask, nodeMask * 0.9) * clamp(life * 1.25, 0.0, 1.0);
+    if (alpha <= 0.005) discard;
+    vec3 finalCol = mix(curveCol, vec3(0.95, 0.98, 1.0), nodeMask * 0.7);
+    fragColor = vec4(finalCol, alpha);
+  }`;
+
+  const progP2G          = createProgram(P2G_VS, P2G_FS);
+  const progMedium       = createProgram(QUAD_VS, MEDIUM_FS);
+  const progUpdate       = createProgram(QUAD_VS, BIRD_UPDATE_FS);
+  const progDisplayMed   = createProgram(QUAD_VS, DISPLAY_MED_FS);
+  const progDisplayBirds = createProgram(DISPLAY_BIRDS_VS, DISPLAY_BIRDS_FS);
+
+  const birdA   = [createFloatTex(MAX_BIRDS, 1), createFloatTex(MAX_BIRDS, 1)];
+  const birdB   = [createFloatTex(MAX_BIRDS, 1), createFloatTex(MAX_BIRDS, 1)];
+  const birdC   = [createFloatTex(MAX_BIRDS, 1), createFloatTex(MAX_BIRDS, 1)];
+  const birdFbo = [
+    createFBO([birdA[0], birdB[0], birdC[0]]),
+    createFBO([birdA[1], birdB[1], birdC[1]])
+  ];
+
+  const forceTex = createFloatTex(FMX, FMY, !extFloatBlend);
+  const forceFbo = createFBO([forceTex]);
+
+  const medA   = [createFloatTex(FMX, FMY), createFloatTex(FMX, FMY)];
+  const medB   = [createFloatTex(FMX, FMY), createFloatTex(FMX, FMY)];
+  const medFbo = [createFBO([medA[0], medB[0]]), createFBO([medA[1], medB[1]])];
+
+  let cur = 0;
+  let medCur = 0;
+
+  function makeEmptyBuffers() {
+    return [
+      new Float32Array(MAX_BIRDS * 4),
+      new Float32Array(MAX_BIRDS * 4),
+      new Float32Array(MAX_BIRDS * 4)
+    ];
+  }
+
+  function uploadState(dA, dB, dC) {
+    const flatZero = new Float32Array(FMX * FMY * 4);
+    for (let i = 0; i < 2; i++) {
+      gl.bindTexture(gl.TEXTURE_2D, birdA[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MAX_BIRDS, 1, gl.RGBA, gl.FLOAT, dA);
+      gl.bindTexture(gl.TEXTURE_2D, birdB[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MAX_BIRDS, 1, gl.RGBA, gl.FLOAT, dB);
+      gl.bindTexture(gl.TEXTURE_2D, birdC[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MAX_BIRDS, 1, gl.RGBA, gl.FLOAT, dC);
+      gl.bindTexture(gl.TEXTURE_2D, medA[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, FMX, FMY, gl.RGBA, gl.FLOAT, flatZero);
+      gl.bindTexture(gl.TEXTURE_2D, medB[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, FMX, FMY, gl.RGBA, gl.FLOAT, flatZero);
+    }
+    cur = 0;
+    medCur = 0;
+  }
+
+  function setBird(dA, dB, dC, idx, x, y, angle, vAxial = 0, size = 1.0, life = 1.0, qs = 0, vqs = 0, qa = 0, vqa = 0, omegaBody = 0) {
+    const wx = ((x % WORLD_W) + WORLD_W) % WORLD_W;
+    const wy = ((y % WORLD_H) + WORLD_H) % WORLD_H;
+    const i4 = idx * 4;
+    dA[i4 + 0] = wx;
+    dA[i4 + 1] = wy;
+    dA[i4 + 2] = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    dA[i4 + 3] = vAxial;
+    dB[i4 + 0] = life;
+    dB[i4 + 1] = size;
+    dB[i4 + 2] = qs;
+    dB[i4 + 3] = vqs;
+    dC[i4 + 0] = qa;
+    dC[i4 + 1] = vqa;
+    dC[i4 + 2] = omegaBody;
+    dC[i4 + 3] = 0;
+  }
+
+  function seedPreset(kind) {
+    const [dA, dB, dC] = makeEmptyBuffers();
+    const cx = WORLD_W * 0.5;
+    const cy = WORLD_H * 0.5;
+    const omega = Math.PI * 2 * params.freq;
+    simTime = 0;
+    params.activePreset = kind;
+
+    if (kind === 'single') {
+      setBird(dA, dB, dC, 0, cx, cy, Math.PI * 0.5, 0.0, 1.0, 1.0, 0.0, omega);
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomLevel = 3.5;
+      params.zoomCenter = [cx, cy];
+      params.modeName = '1. Single 1.5-Sine';
+    } else if (kind === 'pair-straight') {
+      setBird(dA, dB, dC, 0, cx, cy - 4.5, Math.PI * 0.5, 1.9, 1.0, 1.0, Math.cos(0.35), omega * Math.sin(0.35));
+      setBird(dA, dB, dC, 1, cx, cy - 2.4, Math.PI * 0.5, 1.9, 1.0, 1.0, Math.cos(0.35), omega * Math.sin(0.35));
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomLevel = 3.5;
+      params.zoomCenter = [cx, cy + 1.0];
+      params.modeName = '2. Pair (Straight)';
+    } else if (kind === 'pair-sync') {
+      const phi1 = 0.0;
+      const phi2 = (Math.PI * 2) / 3.0; // 120 deg out of phase!
+      setBird(dA, dB, dC, 0, cx - 0.55, cy - 2.3, Math.PI * 0.5, 1.9, 1.0, 1.0, Math.cos(phi1), omega * Math.sin(phi1));
+      setBird(dA, dB, dC, 1, cx + 0.60, cy - 4.0, Math.PI * 0.5, 1.9, 1.0, 1.0, Math.cos(phi2), omega * Math.sin(phi2));
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomLevel = 3.5;
+      params.zoomCenter = [cx, cy + 1.0];
+      params.modeName = '3. Pair (120° Sync)';
+    } else if (kind === 'chain-straight') {
+      for (let i = 0; i < 5; i++) {
+        setBird(dA, dB, dC, i, cx, 13.5 + i * 2.0, Math.PI * 0.5, 1.9, 1.0, 1.0, Math.cos(0.35), omega * Math.sin(0.35));
+      }
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomLevel = 3.0;
+      params.zoomCenter = [cx, cy + 0.5];
+      params.modeName = '4. Chain (5 Straight)';
+    } else if (kind === 'chain-overlap') {
+      for (let i = 0; i < 5; i++) {
+        const x = cx - 1.4 + (4 - i) * 0.72;
+        const y = 14.0 + i * 1.90;
+        setBird(dA, dB, dC, i, x, y, Math.PI * 0.5, 1.9, 1.0, 1.0, Math.cos(0.35), omega * Math.sin(0.35));
+      }
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomLevel = 3.0;
+      params.zoomCenter = [cx, cy + 0.5];
+      params.modeName = '5. Chain (Tip-Overlap)';
+    } else if (kind === 'ring') {
+      const count = 12;
+      const R = 4.6;
+      for (let i = 0; i < count; i++) {
+        const a = (i / count) * Math.PI * 2;
+        const x = cx + Math.cos(a) * R;
+        const y = cy + Math.sin(a) * R;
+        const phi = 0.35;
+        setBird(dA, dB, dC, i, x, y, a - Math.PI * 0.5, 1.9, 1.0, 1.0, Math.cos(phi), omega * Math.sin(phi));
+      }
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomLevel = 3.2;
+      params.zoomCenter = [cx, cy];
+      params.modeName = '6. Closed Ring (12)';
+    } else if (kind === 'headon') {
+      for (let i = 0; i < 3; i++) {
+        setBird(dA, dB, dC, i, cx - 7.5 + i * 2.0, cy + 0.25, 0.0, 2.0, 1.0, 1.0, Math.cos(0.3), omega * Math.sin(0.3));
+        setBird(dA, dB, dC, i + 3, cx + 7.5 - i * 2.0, cy - 0.25, Math.PI, 2.0, 1.0, 1.0, Math.cos(0.3), omega * Math.sin(0.3));
+      }
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.zoomed = true;
+      params.zoomLevel = 3.2;
+      params.zoomCenter = [cx, cy];
+      params.modeName = '7. Head-On Bounce';
+    } else if (kind === 'soup') {
+      const placed = [];
+      for (let s = 0; s < 160; s++) {
+        for (let tries = 0; tries < 20; tries++) {
+          const rx = Math.random() * WORLD_W;
+          const ry = Math.random() * WORLD_H;
+          let ok = true;
+          for (let p = 0; p < placed.length; p++) {
+            let dx = Math.abs(rx - placed[p][0]);
+            let dy = Math.abs(ry - placed[p][1]);
+            if (dx > WORLD_W * 0.5) dx = WORLD_W - dx;
+            if (dy > WORLD_H * 0.5) dy = WORLD_H - dy;
+            if (dx * dx + dy * dy < 1.85 * 1.85) { ok = false; break; }
+          }
+          if (ok) {
+            placed.push([rx, ry]);
+            const phi = Math.random() * Math.PI * 2;
+            const sz = 0.85 + Math.random() * 0.30;
+            const lf = 0.35 + Math.random() * 0.65;
+            setBird(dA, dB, dC, s, rx, ry, Math.random() * Math.PI * 2, 0.0, sz, lf, Math.cos(phi), omega * Math.sin(phi));
+            break;
+          }
+        }
+      }
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.08, v => v.toFixed(2));
+      params.zoomed = false;
+      params.zoomLevel = 1.0;
+      params.zoomCenter = [cx, cy];
+      params.modeName = '8. Pure Soup (160)';
+    } else if (kind === 'clear') {
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.modeName = 'Cleared (Drag to draw)';
+    }
+
+    uploadState(dA, dB, dC);
+    updateModeUI(kind);
+  }
+
+  function updateModeUI(activeKind) {
+    document.getElementById('mode-label').textContent = params.modeName;
+    const map = {
+      single: 'btn-single',
+      'pair-straight': 'btn-pair-straight',
+      'pair-sync': 'btn-pair-sync',
+      'chain-straight': 'btn-chain-straight',
+      'chain-overlap': 'btn-chain-overlap',
+      ring: 'btn-ring',
+      headon: 'btn-headon',
+      soup: 'btn-soup',
+      clear: 'btn-clear'
+    };
+    for (const [k, id] of Object.entries(map)) {
+      document.getElementById(id).classList.toggle('active', k === activeKind);
+    }
+    document.getElementById('btn-zoom').classList.toggle('active', params.zoomed);
+    document.getElementById('btn-zoom').textContent = params.zoomed ? 'Zoom Out (Space)' : 'Zoom In (Space)';
+  }
+
+  function setSlider(slId, valId, key, val, fmt) {
+    params[key] = val;
+    document.getElementById(slId).value = val;
+    document.getElementById(valId).textContent = fmt(val);
+  }
+
+  function bindSlider(slId, valId, key, fmt) {
+    const el = document.getElementById(slId);
+    const valEl = document.getElementById(valId);
+    el.addEventListener('input', () => {
+      params[key] = parseFloat(el.value);
+      valEl.textContent = fmt(params[key]);
+    });
+  }
+
+  bindSlider('sl-lifespan', 'val-lifespan', 'lifespan', v => v.toFixed(1) + ' s');
+  bindSlider('sl-strokedrive', 'val-strokedrive', 'strokeDrive', v => v.toFixed(1));
+  bindSlider('sl-freq', 'val-freq', 'freq', v => v.toFixed(1) + ' Hz');
+  bindSlider('sl-waveamp', 'val-waveamp', 'waveAmp', v => v.toFixed(2));
+  bindSlider('sl-spawn', 'val-spawn', 'spawn', v => v.toFixed(2));
+
+  bindSlider('sl-stiff', 'val-stiff', 'bulkStiff', v => v.toFixed(1));
+  bindSlider('sl-shear', 'val-shear', 'shearRigid', v => v.toFixed(1));
+  bindSlider('sl-heavy', 'val-heavy', 'heaviness', v => v.toFixed(1));
+  bindSlider('sl-push', 'val-push', 'birdPush', v => v.toFixed(1));
+  bindSlider('sl-bulkdamp', 'val-bulkdamp', 'bulkDamp', v => v.toFixed(2));
+  bindSlider('sl-sheardamp', 'val-sheardamp', 'shearDamp', v => v.toFixed(2));
+
+  bindSlider('sl-tipsync', 'val-tipsync', 'tipSync', v => v.toFixed(2));
+  bindSlider('sl-wavesync', 'val-wavesync', 'waveSync', v => v.toFixed(2));
+  bindSlider('sl-twist', 'val-twist', 'twistDrive', v => v.toFixed(2));
+  bindSlider('sl-psteer', 'val-psteer', 'pressSteer', v => v.toFixed(1));
+  bindSlider('sl-flowtorque', 'val-flowtorque', 'flowTorque', v => v.toFixed(1));
+  bindSlider('sl-wavetorque', 'val-wavetorque', 'waveTorque', v => v.toFixed(2));
+
+  document.getElementById('chk-foam').addEventListener('change', e => params.showFoam = e.target.checked);
+  document.getElementById('chk-flow').addEventListener('change', e => params.showFlow = e.target.checked);
+  document.getElementById('chk-curl').addEventListener('change', e => params.showCurl = e.target.checked);
+  document.getElementById('chk-grid').addEventListener('change', e => params.showGrid = e.target.checked);
+
+  document.getElementById('chk-t1').addEventListener('change', e => {
+    params.ablateT1 = e.target.checked;
+    if (params.ablateT1) {
+      params.ablateT1b = false;
+      document.getElementById('chk-t1b').checked = false;
+    }
+  });
+  document.getElementById('chk-t1b').addEventListener('change', e => {
+    params.ablateT1b = e.target.checked;
+    if (params.ablateT1b) {
+      params.ablateT1 = false;
+      document.getElementById('chk-t1').checked = false;
+    }
+  });
+  document.getElementById('chk-t2').addEventListener('change', e => params.ablateT2 = e.target.checked);
+  document.getElementById('chk-t3').addEventListener('change', e => params.ablateT3 = e.target.checked);
+  document.getElementById('chk-t4').addEventListener('change', e => {
+    params.showTelemetry = e.target.checked;
+    document.getElementById('t4-hud').style.display = params.showTelemetry ? 'block' : 'none';
+  });
+  document.getElementById('btn-reseed').onclick = () => seedPreset(params.activePreset);
+
+  document.getElementById('btn-single').onclick = () => seedPreset('single');
+  document.getElementById('btn-pair-straight').onclick = () => seedPreset('pair-straight');
+  document.getElementById('btn-pair-sync').onclick = () => seedPreset('pair-sync');
+  document.getElementById('btn-chain-straight').onclick = () => seedPreset('chain-straight');
+  document.getElementById('btn-chain-overlap').onclick = () => seedPreset('chain-overlap');
+  document.getElementById('btn-ring').onclick = () => seedPreset('ring');
+  document.getElementById('btn-headon').onclick = () => seedPreset('headon');
+  document.getElementById('btn-soup').onclick = () => seedPreset('soup');
+  document.getElementById('btn-clear').onclick = () => seedPreset('clear');
+  document.getElementById('btn-freeze-spawn').onclick = () => {
+    setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+  };
+
+  document.getElementById('btn-pause').onclick = () => {
+    params.paused = !params.paused;
+    document.getElementById('btn-pause').classList.toggle('active', params.paused);
+    document.getElementById('btn-pause').textContent = params.paused ? 'Resume (P)' : 'Pause (P)';
+  };
+  document.getElementById('btn-zoom').onclick = () => {
+    params.zoomed = !params.zoomed;
+    if (params.zoomed && params.zoomLevel <= 1.2) params.zoomLevel = 3.0;
+    document.getElementById('btn-zoom').classList.toggle('active', params.zoomed);
+    document.getElementById('btn-zoom').textContent = params.zoomed ? 'Zoom Out (Space)' : 'Zoom In (Space)';
+  };
+
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      document.getElementById('btn-zoom').click();
+    } else if (e.key === 'p' || e.key === 'P') {
+      document.getElementById('btn-pause').click();
+    }
+  });
+
+  // --- Mouse Drawing ---
+  let mouseDown = false;
+  let lastPaintWorld = [WORLD_W * 0.5, WORLD_H * 0.5];
+  let paintPendingSlot = -1;
+  let paintPendingPos = [0, 0];
+  let paintPendingAngle = 0;
+  let paintSlotCursor = 160;
+
+  function screenToWorld(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const u = (clientX - rect.left) / rect.width;
+    const v = 1.0 - (clientY - rect.top) / rect.height;
+    const aspect = rect.width / Math.max(rect.height, 1);
+    const gridAspect = WORLD_W / WORLD_H;
+    const zoom = currentZoom;
+    let vx = WORLD_W / zoom, vy = WORLD_H / zoom;
+    if (aspect > gridAspect) vx = vy * aspect;
+    else vy = vx / aspect;
+    return [
+      params.zoomCenter[0] + (u - 0.5) * vx,
+      params.zoomCenter[1] + (v - 0.5) * vy
+    ];
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    mouseDown = true;
+    lastPaintWorld = screenToWorld(e.clientX, e.clientY);
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!mouseDown) return;
+    const next = screenToWorld(e.clientX, e.clientY);
+    const dx = next[0] - lastPaintWorld[0];
+    const dy = next[1] - lastPaintWorld[1];
+    if (dx * dx + dy * dy > 1.8 * 1.8) {
+      paintPendingPos = next;
+      paintPendingAngle = Math.atan2(dy, dx);
+      paintPendingSlot = paintSlotCursor;
+      paintSlotCursor = (paintSlotCursor + 1) % MAX_BIRDS;
+      lastPaintWorld = next;
+    }
+  });
+  canvas.addEventListener('pointerup', () => { mouseDown = false; });
+
+  // --- Resize ---
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.floor(canvas.clientWidth * dpr);
+    const h = Math.floor(canvas.clientHeight * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function drawQuad(prog, attribName = 'aPos') {
+    const loc = gl.getAttribLocation(prog, attribName);
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  function drawBirdsInstanced(prog) {
+    const loc = gl.getAttribLocation(prog, 'aQuad');
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, MAX_BIRDS * 9);
+  }
+
+  // --- Main Loop ---
+  let frameCount = 0;
+  let simTime = 0;
+  let lastT = performance.now();
+  let fpsSmooth = 60;
+  let currentZoom = 3.0;
+
+  seedPreset('chain-straight');
+
+  function splatForces() {
+    gl.viewport(0, 0, FMX, FMY);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, forceFbo);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.useProgram(progP2G);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, birdA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progP2G, 'uBirdA'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, birdB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progP2G, 'uBirdB'), 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, birdC[cur]);
+    gl.uniform1i(gl.getUniformLocation(progP2G, 'uBirdC'), 2);
+
+    gl.uniform1f(gl.getUniformLocation(progP2G, 'uFreq'), params.freq);
+    gl.uniform1f(gl.getUniformLocation(progP2G, 'uWaveAmp'), params.waveAmp);
+    gl.uniform1f(gl.getUniformLocation(progP2G, 'uBirdPush'), params.birdPush);
+    gl.uniform1f(gl.getUniformLocation(progP2G, 'uAblateT1'), params.ablateT1 ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progP2G, 'uAblateT1b'), params.ablateT1b ? 1.0 : 0.0);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    drawBirdsInstanced(progP2G);
+    gl.disable(gl.BLEND);
+  }
+
+  function stepMedium(medDt) {
+    const medNext = 1 - medCur;
+    gl.viewport(0, 0, FMX, FMY);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, medFbo[medNext]);
+    gl.useProgram(progMedium);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, medA[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progMedium, 'uMedA'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, medB[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progMedium, 'uMedB'), 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, forceTex);
+    gl.uniform1i(gl.getUniformLocation(progMedium, 'uForceTex'), 2);
+
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uDt'), medDt);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uBulkStiff'), params.bulkStiff);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uShearRigid'), params.shearRigid);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uHeaviness'), params.heaviness);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uBulkDamp'), params.bulkDamp);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uShearDamp'), params.shearDamp);
+
+    drawQuad(progMedium);
+    medCur = medNext;
+  }
+
+  function stepSim(birdDt) {
+    splatForces();
+
+    const cMaxEst = Math.sqrt((params.bulkStiff * 4.5 + params.shearRigid) / Math.max(params.heaviness * 0.30, 0.15));
+    const medSubsteps = Math.max(4, Math.min(24, Math.ceil((birdDt * cMaxEst) / (0.25 * 0.30))));
+    const medDt = birdDt / medSubsteps;
+    for (let s = 0; s < medSubsteps; s++) {
+      stepMedium(medDt);
+    }
+
+    const next = 1 - cur;
+    gl.viewport(0, 0, MAX_BIRDS, 1);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, birdFbo[next]);
+    gl.useProgram(progUpdate);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, birdA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uBirdA'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, birdB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uBirdB'), 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, birdC[cur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uBirdC'), 2);
+
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, medA[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uMedA'), 3);
+
+    gl.activeTexture(gl.TEXTURE4);
+    gl.bindTexture(gl.TEXTURE_2D, medB[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uMedB'), 4);
+
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uDt'), birdDt);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uLifespan'), params.lifespan);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uFreq'), params.freq);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uStrokeDrive'), params.strokeDrive);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uWaveAmp'), params.waveAmp);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uPressSteer'), params.pressSteer);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uFlowTorque'), params.flowTorque);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uTipSync'), params.tipSync);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uWaveSync'), params.waveSync);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uTwistDrive'), params.twistDrive);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uWaveTorque'), params.waveTorque);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uAblateT2'), params.ablateT2 ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uAblateT3'), params.ablateT3 ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uSpawnRate'), params.spawn);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uFrame'), frameCount);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uPaintSlot'), paintPendingSlot);
+    gl.uniform2f(gl.getUniformLocation(progUpdate, 'uPaintPos'), paintPendingPos[0], paintPendingPos[1]);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uPaintAngle'), paintPendingAngle);
+
+    drawQuad(progUpdate);
+    paintPendingSlot = -1;
+    cur = next;
+
+    frameCount++;
+    simTime += birdDt;
+  }
+
+  function render(now) {
+    resize();
+    const rawDt = Math.min((now - lastT) / 1000, 0.05);
+    lastT = now;
+    if (rawDt > 0.001) fpsSmooth = fpsSmooth * 0.92 + (1 / rawDt) * 0.08;
+
+    const targetZoom = params.zoomed ? params.zoomLevel : 1.0;
+    currentZoom += (targetZoom - currentZoom) * Math.min(rawDt * 8.0, 1.0);
+
+    if (!params.paused) {
+      const birdDt = Math.min(rawDt, 0.033) * 0.5;
+      stepSim(birdDt);
+      stepSim(birdDt);
+    }
+
+    // Pass 3a: Elastic Vacuum Background & World Grid
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(progDisplayMed);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, medA[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayMed, 'uMedA'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, medB[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayMed, 'uMedB'), 1);
+
+    gl.uniform2f(gl.getUniformLocation(progDisplayMed, 'uRes'), canvas.width, canvas.height);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uZoom'), currentZoom);
+    gl.uniform2f(gl.getUniformLocation(progDisplayMed, 'uZoomCenter'), params.zoomCenter[0], params.zoomCenter[1]);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uShowFoam'), params.showFoam ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uShowFlow'), params.showFlow ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uShowCurl'), params.showCurl ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uShowGrid'), params.showGrid ? 1.0 : 0.0);
+
+    drawQuad(progDisplayMed);
+
+    // Pass 3b: Extended 1.5-Sine Fourier Bodies
+    gl.useProgram(progDisplayBirds);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, birdA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayBirds, 'uBirdA'), 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, birdB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayBirds, 'uBirdB'), 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, birdC[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayBirds, 'uBirdC'), 2);
+
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, medB[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayBirds, 'uMedB'), 3);
+
+    gl.uniform2f(gl.getUniformLocation(progDisplayBirds, 'uRes'), canvas.width, canvas.height);
+    gl.uniform1f(gl.getUniformLocation(progDisplayBirds, 'uZoom'), currentZoom);
+    gl.uniform2f(gl.getUniformLocation(progDisplayBirds, 'uZoomCenter'), params.zoomCenter[0], params.zoomCenter[1]);
+    gl.uniform1f(gl.getUniformLocation(progDisplayBirds, 'uFreq'), params.freq);
+    gl.uniform1f(gl.getUniformLocation(progDisplayBirds, 'uWaveAmp'), params.waveAmp);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    drawBirdsInstanced(progDisplayBirds);
+    gl.disable(gl.BLEND);
+
+    const c0 = Math.sqrt((params.bulkStiff + params.shearRigid) / Math.max(params.heaviness, 0.1));
+    document.getElementById('stats-line').textContent =
+      `Time: ${simTime.toFixed(1)}s  |  FPS: ${Math.round(fpsSmooth)}  |  c₀: ${c0.toFixed(2)} c/s  |  Zoom: ${currentZoom.toFixed(1)}×`;
+
+    if (!params.paused && params.showTelemetry && (frameCount % 16 === 0 || !lastMetrics)) {
+      updateTelemetryHUD();
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  // --- T4 Conservation, Monopole & Twin-Pocket Telemetry ---
+  const birdABuf = new Float32Array(MAX_BIRDS * 4);
+  const birdBBuf = new Float32Array(MAX_BIRDS * 4);
+  const medABuf  = new Float32Array(FMX * FMY * 4);
+  const medBBuf  = new Float32Array(FMX * FMY * 4);
+  const forceBuf = extFloatBlend ? new Float32Array(FMX * FMY * 4) : null;
+  const forceHalfBuf = extFloatBlend ? null : new Uint16Array(FMX * FMY * 4);
+  let lastMetrics = null;
+
+  function clampJS(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+  function smoothstepJS(e0, e1, x) {
+    const t = clampJS((x - e0) / (e1 - e0), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+  }
+  function mixJS(a, b, t) { return a + (b - a) * t; }
+  function halfToFloat(h) {
+    const s = (h & 0x8000) >> 15;
+    const e = (h & 0x7c00) >> 10;
+    const f = h & 0x03ff;
+    if (e === 0) return (s ? -1 : 1) * Math.pow(2, -14) * (f / 1024);
+    if (e === 31) return f ? NaN : ((s ? -1 : 1) * Infinity);
+    return (s ? -1 : 1) * Math.pow(2, e - 15) * (1 + f / 1024);
+  }
+  function sampleMedBChannel(wx, wy, ch) {
+    const tx = wx / 0.25 - 0.5;
+    const ty = wy / 0.25 - 0.5;
+    const x0 = Math.floor(tx), y0 = Math.floor(ty);
+    const fx = tx - x0, fy = ty - y0;
+    const ix0 = ((x0 % FMX) + FMX) % FMX;
+    const ix1 = (ix0 + 1) % FMX;
+    const iy0 = ((y0 % FMY) + FMY) % FMY;
+    const iy1 = (iy0 + 1) % FMY;
+    const v00 = medBBuf[(iy0 * FMX + ix0) * 4 + ch];
+    const v10 = medBBuf[(iy0 * FMX + ix1) * 4 + ch];
+    const v01 = medBBuf[(iy1 * FMX + ix0) * 4 + ch];
+    const v11 = medBBuf[(iy1 * FMX + ix1) * 4 + ch];
+    return mixJS(mixJS(v00, v10, fx), mixJS(v01, v11, fx), fy);
+  }
+
+  function computeT4Telemetry() {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, birdFbo[cur]);
+    gl.readBuffer(gl.COLOR_ATTACHMENT0);
+    gl.readPixels(0, 0, MAX_BIRDS, 1, gl.RGBA, gl.FLOAT, birdABuf);
+    gl.readBuffer(gl.COLOR_ATTACHMENT1);
+    gl.readPixels(0, 0, MAX_BIRDS, 1, gl.RGBA, gl.FLOAT, birdBBuf);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, medFbo[medCur]);
+    gl.readBuffer(gl.COLOR_ATTACHMENT0);
+    gl.readPixels(0, 0, FMX, FMY, gl.RGBA, gl.FLOAT, medABuf);
+    gl.readBuffer(gl.COLOR_ATTACHMENT1);
+    gl.readPixels(0, 0, FMX, FMY, gl.RGBA, gl.FLOAT, medBBuf);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, forceFbo);
+    gl.readBuffer(gl.COLOR_ATTACHMENT0);
+    if (extFloatBlend) {
+      gl.readPixels(0, 0, FMX, FMY, gl.RGBA, gl.FLOAT, forceBuf);
+    } else {
+      gl.readPixels(0, 0, FMX, FMY, gl.RGBA, gl.HALF_FLOAT, forceHalfBuf);
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    const birds = [];
+    let sumV = 0, maxV = 0, bPx = 0, bPy = 0, sumLife = 0;
+    for (let i = 0; i < MAX_BIRDS; i++) {
+      const life = birdBBuf[i * 4];
+      if (life <= 0.05) continue;
+      const x = birdABuf[i * 4];
+      const y = birdABuf[i * 4 + 1];
+      const ang = birdABuf[i * 4 + 2];
+      const vAx = birdABuf[i * 4 + 3];
+      const sz = birdBBuf[i * 4 + 1];
+      const dx = Math.cos(ang), dy = Math.sin(ang);
+      birds.push({ i, x, y, ang, dx, dy, vAx, life, sz });
+      sumV += vAx;
+      if (vAx > maxV) maxV = vAx;
+      bPx += vAx * dx;
+      bPy += vAx * dy;
+      sumLife += life;
+    }
+
+    const dA = 0.25 * 0.25;
+    let mPx = 0, mPy = 0, fSx = 0, fSy = 0, fAx = 0, fAy = 0;
+    let medKE = 0, medPE = 0, curlSq = 0;
+    const N = FMX * FMY;
+    for (let k = 0; k < N; k++) {
+      const o = k * 4;
+      const sx = medABuf[o], sy = medABuf[o + 1], vx = medABuf[o + 2], vy = medABuf[o + 3];
+      const dRho = medBBuf[o], curlV = medBBuf[o + 2];
+      const fx = extFloatBlend ? forceBuf[o] : halfToFloat(forceHalfBuf[o]);
+      const fy = extFloatBlend ? forceBuf[o + 1] : halfToFloat(forceHalfBuf[o + 1]);
+
+      const rhoEff = params.heaviness * clampJS(1.0 + 1.8 * clampJS(dRho, -0.85, 0.85), 0.30, 3.0);
+      const gammaEff = mixJS(params.shearDamp, params.bulkDamp, smoothstepJS(0.01, 0.14, Math.abs(dRho)))
+                     * mixJS(1.0, 0.55, smoothstepJS(0.0, 0.25, -dRho))
+                     * (1.0 + 0.6 * Math.max(dRho, 0.0));
+
+      mPx += rhoEff * vx * dA;
+      mPy += rhoEff * vy * dA;
+      fSx += fx * dA;
+      fSy += fy * dA;
+      fAx += (-0.04 * params.bulkStiff * sx - rhoEff * gammaEff * vx) * dA;
+      fAy += (-0.04 * params.bulkStiff * sy - rhoEff * gammaEff * vy) * dA;
+      medKE += 0.5 * rhoEff * (vx * vx + vy * vy) * dA;
+      medPE += 0.5 * params.bulkStiff * dRho * dRho * dA;
+      curlSq += curlV * curlV;
+    }
+
+    // Twin-pocket contrast behind alive birds (centerline u=0 vs twin wings u=+-0.55 at 0.90*size behind)
+    let pCenterSum = 0, pWingSum = 0, pCount = 0;
+    for (const b of birds) {
+      const L = 1.25 * b.sz;
+      const px = -b.dy, py = b.dx;
+      const bx = b.x - b.dx * (0.90 * b.sz);
+      const by = b.y - b.dy * (0.90 * b.sz);
+      const cVal = sampleMedBChannel(bx, by, 0);
+      const lVal = sampleMedBChannel(bx + px * (0.55 * L), by + py * (0.55 * L), 0);
+      const rVal = sampleMedBChannel(bx - px * (0.55 * L), by - py * (0.55 * L), 0);
+      pCenterSum += cVal;
+      pWingSum += 0.5 * (lVal + rVal);
+      pCount++;
+    }
+    const pocketCenter = pCount ? pCenterSum / pCount : 0;
+    const pocketWings  = pCount ? pWingSum / pCount : 0;
+    const pocketContrast = pocketCenter - pocketWings; // > 0 means wings are bluer than dark center spine!
+
+    // Soup 1D-train vs 2D-clump structure within radius 2.5
+    let nbPairs = 0, latPairs = 0, tanPairs = 0;
+    for (let a = 0; a < birds.length; a++) {
+      const ba = birds[a];
+      const px = -ba.dy, py = ba.dx;
+      for (let b = 0; b < birds.length; b++) {
+        if (a === b) continue;
+        const bb = birds[b];
+        let dx = bb.x - ba.x;
+        let dy = bb.y - ba.y;
+        if (dx > WORLD_W * 0.5) dx -= WORLD_W; else if (dx < -WORLD_W * 0.5) dx += WORLD_W;
+        if (dy > WORLD_H * 0.5) dy -= WORLD_H; else if (dy < -WORLD_H * 0.5) dy += WORLD_H;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 0.01 && dist < 2.5) {
+          nbPairs++;
+          const cx = dx / dist, cy = dy / dist;
+          if (Math.abs(cx * px + cy * py) > 0.65) latPairs++;
+          if (Math.abs(cx * ba.dx + cy * ba.dy) > 0.65) tanPairs++;
+        }
+      }
+    }
+
+    lastMetrics = {
+      time: +simTime.toFixed(2),
+      preset: params.activePreset,
+      flags: { t1: params.ablateT1, t1b: params.ablateT1b, t2: params.ablateT2, t3: params.ablateT3 },
+      aliveCount: birds.length,
+      meanLife: birds.length ? +(sumLife / birds.length).toFixed(3) : 0,
+      meanVAxial: birds.length ? +(sumV / birds.length).toFixed(3) : 0,
+      maxVAxial: +maxV.toFixed(3),
+      birdMomMag: +Math.hypot(bPx, bPy).toFixed(2),
+      medMomMag: +Math.hypot(mPx, mPy).toFixed(2),
+      medMom: [+mPx.toFixed(2), +mPy.toFixed(2)],
+      splatForceMag: +Math.hypot(fSx, fSy).toFixed(2),
+      splatForce: [+fSx.toFixed(2), +fSy.toFixed(2)],
+      anchorLeakMag: +Math.hypot(fAx, fAy).toFixed(2),
+      medKE: +medKE.toFixed(2),
+      medPE: +medPE.toFixed(2),
+      medCurlRMS: +Math.sqrt(curlSq / N).toFixed(4),
+      pocketCenter: +pocketCenter.toFixed(4),
+      pocketWings: +pocketWings.toFixed(4),
+      pocketContrast: +pocketContrast.toFixed(4),
+      meanNeighbors2p5: birds.length ? +(nbPairs / birds.length).toFixed(2) : 0,
+      lateralNeighborFrac: nbPairs ? +(latPairs / nbPairs).toFixed(3) : 0,
+      tandemNeighborFrac: nbPairs ? +(tanPairs / nbPairs).toFixed(3) : 0
+    };
+    return lastMetrics;
+  }
+
+  function updateTelemetryHUD() {
+    const m = computeT4Telemetry();
+    const el = document.getElementById('t4-hud');
+    el.textContent =
+      `Alive: ${m.aliveCount} (v̄=${m.meanVAxial.toFixed(2)}) | |F_splat|: ${m.splatForceMag.toFixed(1)} | |F_anchor|: ${m.anchorLeakMag.toFixed(1)} | |P_med|: ${m.medMomMag.toFixed(1)} | E(K/U): ${m.medKE.toFixed(1)}/${m.medPE.toFixed(1)} | Pocket(C−W): ${m.pocketContrast >= 0 ? '+' : ''}${m.pocketContrast.toFixed(3)} (C=${m.pocketCenter.toFixed(3)}, W=${m.pocketWings.toFixed(3)}) | Lat%: ${(m.lateralNeighborFrac * 100).toFixed(0)}%`;
+  }
+
+  window.__ablationAPI = {
+    setFlags(opts = {}) {
+      if ('t1' in opts)  { params.ablateT1  = !!opts.t1;  document.getElementById('chk-t1').checked  = params.ablateT1; }
+      if ('t1b' in opts) { params.ablateT1b = !!opts.t1b; document.getElementById('chk-t1b').checked = params.ablateT1b; }
+      if ('t2' in opts)  { params.ablateT2  = !!opts.t2;  document.getElementById('chk-t2').checked  = params.ablateT2; }
+      if ('t3' in opts)  { params.ablateT3  = !!opts.t3;  document.getElementById('chk-t3').checked  = params.ablateT3; }
+    },
+    setDisplay(opts = {}) {
+      if ('foam' in opts) { params.showFoam = !!opts.foam; document.getElementById('chk-foam').checked = params.showFoam; }
+      if ('flow' in opts) { params.showFlow = !!opts.flow; document.getElementById('chk-flow').checked = params.showFlow; }
+      if ('curl' in opts) { params.showCurl = !!opts.curl; document.getElementById('chk-curl').checked = params.showCurl; }
+      if ('grid' in opts) { params.showGrid = !!opts.grid; document.getElementById('chk-grid').checked = params.showGrid; }
+    },
+    setPaused(p) {
+      params.paused = !!p;
+      document.getElementById('btn-pause').classList.toggle('active', params.paused);
+      document.getElementById('btn-pause').textContent = params.paused ? 'Resume (P)' : 'Pause (P)';
+    },
+    setSpawn(val) {
+      setSlider('sl-spawn', 'val-spawn', 'spawn', val, v => v.toFixed(2));
+    },
+    seed(kind) { seedPreset(kind); },
+    stepSeconds(sec, stepDt = 1 / 120) {
+      const steps = Math.max(1, Math.round(sec / stepDt));
+      for (let s = 0; s < steps; s++) stepSim(stepDt);
+      updateTelemetryHUD();
+      return lastMetrics;
+    },
+    getMetrics() {
+      updateTelemetryHUD();
+      return lastMetrics;
+    }
+  };
+
+  // Optional URL query params: ?preset=chain-straight&t1=1&t1b=0&t2=0&t3=0&flow=0&curl=0&step=3.0&stopAt=4.0&afterStop=5.0
+  const qsParams = new URLSearchParams(window.location.search);
+  window.__ablationAPI.setFlags({
+    t1:  qsParams.get('t1') === '1',
+    t1b: qsParams.get('t1b') === '1',
+    t2:  qsParams.get('t2') === '1',
+    t3:  qsParams.get('t3') === '1'
+  });
+  if (qsParams.has('flow')) window.__ablationAPI.setDisplay({ flow: qsParams.get('flow') === '1' });
+  if (qsParams.has('curl')) window.__ablationAPI.setDisplay({ curl: qsParams.get('curl') === '1' });
+  if (qsParams.has('foam')) window.__ablationAPI.setDisplay({ foam: qsParams.get('foam') === '1' });
+  if (qsParams.has('grid')) window.__ablationAPI.setDisplay({ grid: qsParams.get('grid') === '1' });
+  if (qsParams.get('preset')) {
+    seedPreset(qsParams.get('preset'));
+  }
+  const stepSec = parseFloat(qsParams.get('step') || '0');
+  const stopAtSec = parseFloat(qsParams.get('stopAt') || '0');
+  const afterStopSec = parseFloat(qsParams.get('afterStop') || '0');
+  if (stopAtSec > 0) {
+    window.__ablationAPI.setPaused(true);
+    window.__ablationAPI.stepSeconds(stopAtSec);
+    window.__ablationAPI.setSpawn(0.0);
+    if (afterStopSec > 0) window.__ablationAPI.stepSeconds(afterStopSec);
+    currentZoom = params.zoomed ? params.zoomLevel : 1.0;
+    document.getElementById('t4-hud').dataset.json = JSON.stringify(lastMetrics);
+    document.getElementById('t4-hud').textContent = 'JSON: ' + JSON.stringify(lastMetrics);
+  } else if (stepSec > 0) {
+    window.__ablationAPI.setPaused(true);
+    window.__ablationAPI.stepSeconds(stepSec);
+    currentZoom = params.zoomed ? params.zoomLevel : 1.0;
+    document.getElementById('t4-hud').dataset.json = JSON.stringify(lastMetrics);
+    document.getElementById('t4-hud').textContent = 'JSON: ' + JSON.stringify(lastMetrics);
+  }
+
+  requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>

@@ -1,86 +1,55 @@
-# Aether-Strings — Flapping Vibrations (v5.1)
+# Aether-Strings — Flapping Vibrations (v7.1 Arch-Wave Milestone)
 
 **Live in-browser demo (WebGL2):** https://virtualorganics.github.io/Aether-Strings/
 
 ---
 
-## Medium / Vibrations Model (Concept & Goal)
+## New Direction (`v7.1`): Simplifying the Cosine-Wave into an Arch-Wave
 
-Basic symmetric vibrations (oscillations) living inside a flexible 2D ground-medium. On their own, the vibrations only rock in place, back & forth, with nowhere to go, and fade out. They only keep living and start gliding when they team up with a partner, breaking the symmetry as they provide for each other a ‘solid ground’ to push off from.
+Earlier versions (`v1`–`v5.1`) modeled each vibration as a 1.5-period `cos(πu)` flapping string where the center flipped opposite the wingtips on an oscillator clock. Starting with **`v7.1`**, we simplify the baseline unit into an **Arch-Wave**—a single tightly packed group of particles inside a mega-dense, stiff elastic medium that dents the medium deeply, hits maximum compression, and rebounds back and forth without a hardcoded frequency clock:
 
-They have flexible wave bodies where the middle flips opposite the wingtips, and they can ripple side-to-side if hit unevenly.
+![Simplifying the previous Cosine-Wave into an Arch-Wave](assets/arch-wave-cycle.png)
 
-- **Orange** = squeezed, stiffer medium pushing back
-- **Blue** = stretched-out medium, slipstream wake
-- **Wave body:** each vibration has a 2-mode wave body (`cos(πu)` flipping spine + `sin(πu)` antisymmetric twist mode)
+**Simplifying the previous Cosine-Wave into an Arch-Wave:**
 
-In the current `v5.1` sandbox, waves carve twin Left & Right blue drafting pockets with a dark dead-zone down the middle, group into trains out of a random soup, and hold steady circular loops.
-
-> **Work-in-progress note:** `v5.1` is an early exploratory 2D test bench. Several headline behaviors (drafting thrust, survival, swarm suppression, and phase lock) still rely on heuristic neighbor rules alongside the medium solver rather than purely emergent two-way physics. See the **[Honest Audit & v6.0 Roadmap](#honest-audit-current-v51-scaffolding-vs-v60-physics-roadmap)** below for a full breakdown.
-
----
-
-## Why the `cos(πu)` Wave Body Matters
-
-Instead of treating oscillators as point dipoles or rigid chevrons, each vibration in `v5.1` has a continuous 2-mode Fourier body parameterized along its transverse span $u \in [-1, +1]$:
-
-$$y(u, t) = A \cdot \big(q_s(t)\cos(\pi u) + q_a(t)\sin(\pi u)\big)$$
-
-with base stroke amplitude $A = 0.34$ (plus a small cruise camber $0.06 \cdot \text{cruiseAmt} \cdot (1 - u^2)$ during forward glide). Choosing `cos(πu)` and `sin(πu)` as the modal basis gives four useful geometric properties:
-
-1. **Exact zero-mean stroke & fore–aft parity:**
-   $$\int_{-1}^{1} \cos(\pi u)\,du = 0$$
-   The curve crosses zero at two nodal points ($u = \pm 0.5$) and meets flat horizontal slopes at the wingtips ($\frac{d}{du}\cos(\pi u) = -\pi\sin(\pi u) = 0$ at $u = \pm 1$). With zero static camber, an isolated symmetric oscillator obeys exact parity + half-period inversion symmetry ($y \to -y,\; t \to t + T/2$), meaning its stroke carries zero net impulse even in an inertial, nonlinear medium.
-2. **Twin `[L]`/`[R]` drafting pockets & central dead-zone spine (with caveat):**
-   Visually, cruising chains produce two symmetric Left and Right stretched blue slipstream pockets ($\delta\rho < 0$) separated by a dark central dead-zone spine, with no explicit dead-zone repulsion rule. *Caveat:* in `v5.1`, the Particle-to-Grid cruise splat (`P2G_FS`) also applies a wing-weighted envelope (`wingEnv`: 35% center / 100% outer wings), a lateral parting push (`fPart ∝ u`), and a constant cruise term (`+0.16`). Isolating how much of the twin-pocket structure survives from the pure `cos(πu)` stroke alone requires an ablation test (`wingEnv = 1`, `fPart = 0`).
-3. **Orthogonal antisymmetric twist mode & traveling-wave chirality:**
-   The second mode $\phi_a(u) = \sin(\pi u)$ is passively damped ($\zeta = 0.16$). Under symmetric loading it stays silent; when a wake or neighbor loads the left and right wings unevenly, $q_a$ rings up. Combining $(q_s, q_a)$ and their normalized velocities yields a traveling-wave chirality invariant:
-   $$L_{\text{wave}} = q_s \frac{\dot{q}_a}{\omega} - \frac{\dot{q}_s}{\omega} q_a$$
-   allowing lateral ripples to couple into steering torque.
-4. **Exact 7-point DFT quadrature:**
-   Both P2G force splatting and G2P modal projection evaluate 7 uniformly spaced span points $u_k = \frac{2(k - 3)}{7}$ ($k = 0 \dots 6$). By discrete Fourier orthogonality, `cos(πu)` has zero discrete sum and zero cross-overlap with `sin(πu)` at these quadrature nodes.
+- **`t₀` – Forward Push (North):** Tightly packed particles move as a unit, denting and compressing the medium to the North.
+- **`t₁` – Stagnation & Containment:** At max compression, the medium pushes back and curves around the sides like tree bark, squeezing the group tight as forward motion stalls.
+- **`t₂` – Rebound:** Built-up tension pushes the group backward toward the South while the medium guides its edges.
+- **`t'₀` – Opposite Compression (South):** The group pushes into the opposite side, compressing the medium to the South before the cycle repeats.
 
 ---
 
-## Key Architecture & Medium Solver (`v5.1`)
+## Medium / Vibrations Model (`v7.1` Architecture)
 
-- **Nonlinear compressible 2D viscoelastic lattice (`320 × 200` grid over `80 × 50` world, $H = 0.25$):**
-  Evolves lattice displacement $\mathbf{s}$ and velocity $\mathbf{v}$, deriving local compression $\delta\rho = -\nabla \cdot \mathbf{s}$ and vorticity $\omega_z = \nabla \times \mathbf{v}$.
-  - *Asymmetric nonlinear elasticity:* Compression stiffens cubically ($d + 2.5 d^2 + 16 d^3$, orange walls), while extension softens linearly ($0.85 d$, blue tension wake).
-  - *Density-dependent local inertia ("heaviness"):* $\rho_{\text{eff}}(\delta\rho) = \rho_0 \cdot \text{clamp}(1 + 1.8\,\delta\rho,\, 0.30,\, 3.0)$ ($\rho_0 = 2.0$), giving higher local wave speed $c_{\text{local}} = \sqrt{(K + \mu)/\rho_{\text{eff}}}$ ($c_0 \approx 5.48\text{ c/s}$ at rest) in stretched blue wakes and heavier, stiffer response in compressed orange zones.
-  - *Split irrotational vs. rotational dissipation:* Separate bulk viscosity $\nabla(\nabla \cdot \mathbf{v})$ and higher bulk damping ($\gamma_B = 2.20$) suppress longitudinal ringing, while lower shear damping ($\gamma_S = 0.75$) and rotational diffusion $\nabla^2 \mathbf{v}$ preserve shear longer.
-- **Continuous Lagrangian particle state:**
-  Up to `256` continuous floating-point oscillator slots (`RGBA32F` ping-pong textures, avoiding discrete grid-cell overwrite artifacts) splatting additively into `forceTex` (`EXT_float_blend` with `RGBA16F` fallback).
+`v7.1` returns to the conceptual foundation of **`v5.1`**—a **stiff elastic displacement lattice** representing a vast, mega-dense vibrating medium—while upgrading the scale, replacing the `1.5` cosine wave with the clock-free Arch-Wave, removing direct neighbor-perception crutches, and eliminating curve overlaps:
+
+- **High-resolution stiff elastic displacement lattice (`480 × 300` over a `120 × 75` world, `H = 0.25`):**
+  Evolves lattice displacement $\mathbf{s}(x,y)$ and velocity $\mathbf{v}(x,y)$ via staggered-face Cauchy stress with nonlinear cubic hard-packing compression ($d + 2.8 d^2 + 24 d^3$ for $\delta\rho \ge 0$, softened $0.82 d$ in tension), shear rigidity $\mu$, density-dependent heaviness $\rho_{\text{eff}}(\delta\rho)$, and live deformed lattice lines that visibly pinch ahead of each arch and curve around its flanks like tree bark.
+  - **Orange** = compressed, stiffer medium pushing back ($\delta\rho > 0$)
+  - **Blue / Cyan** = stretched-out tension wake ($\delta\rho < 0$)
+  - **Deforming lattice grid** = elastic shear & tree-bark wrapping around active arches
+- **Compact Arch-Wave scale (`256` continuous slots, `L = 0.85`):**
+  Each arch-string spans `1.70` world units (`1.4%` of the `120`-unit arena width), preserving the sense of small localized coherent groups emerging inside a vast, fine-grained elastic medium (`180+` active arches with spontaneous emergence in `Pure Soup`).
+- **Clock-free 4-phase compression–rebound (`t₀ → t₁ → t₂ → t'₀`):**
+  Replaces the `cos(πu)` stroke and fixed `-ω₀² q` frequency clock with a single zero-mean arch dome $\phi_{\text{bow}}(u) = \cos(\frac{\pi}{2}u) - 0.6388$ whose curvature bends dynamically (`∩ ↔ ∪`) with motion and local lattice compression. Rebound timing emerges from the medium's bulk stiffness $K$ and nonlinear compression wall rather than a hardcoded frequency.
+- **Exact `9 × 9` curve-to-curve exclusion:**
+  Marker-to-marker hard-core repulsion and contact rebound prevent arch-strings from intersecting or ghost-overlapping at any collision angle (`Crossed 90°`, `Head-On`, `Closed Ring`, and `Pure Soup`).
+- **Zero `leaderCue` / `rearFollower` / `fCruise` perception crutches:**
+  Steering and multi-arch coupling act through local lattice pressure gradients, curl, and direct curve contact.
+
+> **Work-in-progress note:** `v7.1` establishes the new **Arch-Wave** visual and conceptual baseline on top of the stiff displacement lattice. Deeper physical refinement—including strict continuum momentum/energy conservation, natural symmetry-breaking pair/chain gliding from pure two-way stress transfer, and lifting to 3D loops and knots—is left for the next research milestones.
 
 ---
 
-## Honest Audit: Current `v5.1` Scaffolding vs. `v6.0` Physics Roadmap
+## Development History: From `v5.1` to `v7.1`
 
-A strict code audit of `v5.1.html` separates what is currently **heuristic scaffolding** from what must be earned from first principles next:
+Every intermediate experiment is preserved in the live version archive so behaviors can be compared directly in the browser:
 
-### Known Scaffolding & Conservation Leaks in `v5.1`
-- **Direct O(N²) partner perception (`BIRD_UPDATE_FS`):** `leaderCue`, `rearFollower`, `closeBlock`, and `crowdMask` read neighboring particles' positions, headings, and speeds directly. These cues currently gate roughly 70% of forward thrust (`fwdThrust`), scripted `life` sustain/decay, and side-crowding penalties—the medium modulates them rather than generating them on its own.
-- **Explicit Kuramoto phase sync:** At $c_0 \approx 5.48$ (Mach $\approx 0.36$), acoustic travel delay introduces a large Doppler phase lag across tandem spacing, so `v5.1` defaults to direct neighbor phase locking (`Wingtip Phase Sync = 1.20`), leaving `Elastic Wave → Mode` at `0.00` as an experimental slider.
-- **Non-reciprocal, massless body dynamics:** Particles move kinematically along their heading (`vAxial`) with speed-matching/clamping and no lateral momentum or moment of inertia. Forces splatted in `P2G_FS` (including a net-forward monopole cruise push) are computed separately from forces read in `BIRD_UPDATE_FS`, so Newton's 3rd law and total momentum/energy are not conserved.
-- **Anchored displacement lattice (no advection / free vortices):** The on-site spring ($-0.04\,K\,\mathbf{s}$) and frame damping ($-\gamma\,\mathbf{v}$, further reduced in stretched blue wakes) leak momentum to a fixed background frame and relax every disturbance back to rest—meaning the current medium cannot hold persistent free vortices.
-
-### Next Steps: Falsification Tests & `v6.0` Honest Core
-1. **Ablation tests on `v5.1` (`T1–T4`):**
-   - `T1`: Set `wingEnv = 1`, `fPart = 0`, and drop the constant `+0.16` cruise term to test whether the twin `[L]`/`[R]` pockets survive from `cos(πu)` alone.
-   - `T2`: Zero direct neighbor perception (`leaderCue`, `rearFollower`, `closeBlock`) to measure how much motion the medium alone carries.
-   - `T3`: Disable scripted `life` / `crowdChoke` penalties to test whether random soup still prefers 1D trains over 2D clumps.
-   - `T4`: Add live momentum and energy budget readouts.
-2. **Two-way momentum-conserving immersed bodies (`v6.0`):**
-   - Give every body finite mass $m$, moment of inertia $I$, and full 2D velocity $(v_x, v_y)$ with zero direct neighbor perception (only medium coupling + short-range steric contact).
-   - Use a single partition-of-unity immersed-boundary kernel (`11`–`13` span markers) with semi-implicit equal-and-opposite impulse exchange ($\Delta \mathbf{p}_{\text{body}} = -\Delta \mathbf{p}_{\text{grid}}$) so linear and angular momentum are conserved to floating-point precision.
-   - Remove the anchored substrate spring and frame drag (using only momentum-conserving internal viscous stress) so partners truly have to act as *each other's* solid ground.
-3. **True symmetry breaking & radiative survival:**
-   - Remove static cruise camber so solo stasis holds strictly by parity + half-period symmetry.
-   - Note that two identical symmetric `cos(πu)` bodies flapping **in phase (`0°`) or anti-phase (`180°`)** still have zero net center-of-mass translation by mirror symmetry below the inertial buckling threshold—so genuine pair/chain gliding comes from either a **phase lag ($\Delta\phi \neq 0, \pi$, metachronal wave)** driven by medium load feedback, or **inertial spontaneous symmetry breaking** (Vandenberghe / Alben–Shelley flapping transition).
-   - Replace scripted `life` with radiative energy balance (a weakly pumped/subcritical oscillator that loses energy to outgoing waves when alone and sustains its amplitude $|q_s|$ by capturing partner wave power $\sum F_{\text{med},k} \cdot \dot{y}_k$).
-4. **Open-chain radial turning & 3D knotted loops:**
-   - Hunt genuine **lateral buckling (pitchfork) instabilities** on straight chains (spontaneous left/right symmetry breaking without hardcoded chirality).
-   - Move to a **3D Maxwell-viscoelastic flowing medium** (elastic on short flap timescales, advecting/flowing on long timescales) so inner-loop compression can vent along the Z-axis and real circulating vortex rings, closed 3D orbits, and knotted structures can be tested honestly.
+1. **`v5.1` (`v5.1.html`) — 1.5-Sine Cosine Sandbox:** Established the stiff elastic displacement lattice, twin `[L]`/`[R]` drafting wakes, chains, closed rings, and soup dynamics using a 2-mode Fourier body $y(u,t) = A(q_s\cos(\pi u) + q_a\sin(\pi u))$.
+2. **`v5.1` Ablation Suite (`v5.1-ablations.html`) — Falsification Tests `T1–T4`:** Quantified which `v5.1` behaviors came from the medium versus heuristic scaffolding (`leaderCue`, `rearFollower`, `fCruise`, scripted `life`/`crowdMask`), proving that medium-reading steering works once wakes exist while `fCruise` generated most of `v5.1`'s wake.
+3. **`v6.0` & `v6.1` (`v6.0.html`, `v6.1.html`) — Momentum-Conserving Viscoelastic Core:** Tested an unanchored finite-volume Jaumann–Maxwell continuum with exact Peskin $\Delta\mathbf{p}_{\text{body}} = -\Delta\mathbf{p}_{\text{med}}$ exchange (`|ΔP_tot| ~ 1e-5`), but the Eulerian fluid-like formulation softened the medium, allowed curves to overlap in `v6.1`, and still used the artificial `cos(πu)` clock flip-flop.
+4. **`v7.0` (`v7.0.html`) — First Arch-Wave Prototype on the Fluid Core:** Replaced `cos(πu)` with a curved bow and `13 × 13` exclusion on top of `v6.1`, demonstrating clean curve separation and emergent stiffness-dependent turnaround, but exposed that the `v6` fluid grid damped isolated pushes dead and bloated the wave scale relative to the medium.
+5. **`v7.1` (`index.html` / `v7.1.html`) — Current Arch-Wave Milestone:** Returned to `v5.1`'s stiff elastic displacement lattice at `480 × 300` (`120 × 75`), restored fine-grained scale, and integrated the clock-free 4-phase Arch-Wave cycle with `9 × 9` curve exclusion.
 
 ---
 
@@ -89,29 +58,34 @@ A strict code audit of `v5.1.html` separates what is currently **heuristic scaff
 This is a dependency-free WebGL2 browser application. Serve the directory with any static HTTP server (such as Python's built-in server) and open it in a WebGL2-capable browser:
 
 ```bash
-python3 -m http.server 8789
+python3 -m http.server 8791
 ```
 
-Then open `http://localhost:8789/`.
+Then open `http://localhost:8791/`.
 
 ---
 
 ## Version Archive
 
-All previous milestone snapshots are preserved alongside `v5.1` and accessible directly in the browser:
+All milestone snapshots are preserved alongside `v7.1` and accessible directly in the browser (and via the sidebar version links inside the app):
 
-| Version | Live Browser Link | File |
-| :--- | :--- | :--- |
-| **v5.1 (Current)** | [Open v5.1](https://virtualorganics.github.io/Aether-Strings/) ([direct](https://virtualorganics.github.io/Aether-Strings/v5.1.html)) | [`index.html`](index.html) / [`v5.1.html`](v5.1.html) |
-| **v5.0** | [Open v5.0](https://virtualorganics.github.io/Aether-Strings/v5.0.html) | [`v5.0.html`](v5.0.html) |
-| **v4.4** | [Open v4.4](https://virtualorganics.github.io/Aether-Strings/v4.4.html) | [`v4.4.html`](v4.4.html) |
-| **v4.3** | [Open v4.3](https://virtualorganics.github.io/Aether-Strings/v4.3.html) | [`v4.3.html`](v4.3.html) |
-| **v4.2** | [Open v4.2](https://virtualorganics.github.io/Aether-Strings/v4.2.html) | [`v4.2.html`](v4.2.html) |
-| **v4.1** | [Open v4.1](https://virtualorganics.github.io/Aether-Strings/v4.1.html) | [`v4.1.html`](v4.1.html) |
-| **v3.0** | [Open v3.0](https://virtualorganics.github.io/Aether-Strings/v3.html) | [`v3.html`](v3.html) |
-| **v2.1** | [Open v2.1](https://virtualorganics.github.io/Aether-Strings/v2.1.html) | [`v2.1.html`](v2.1.html) |
-| **v2.0** | [Open v2.0](https://virtualorganics.github.io/Aether-Strings/v2.html) | [`v2.html`](v2.html) |
-| **Stage 1** | [Open Stage 1](https://virtualorganics.github.io/Aether-Strings/stage1-milestone.html) | [`stage1-milestone.html`](stage1-milestone.html) |
+| Version | Milestone Summary | Live Browser Link | File |
+| :--- | :--- | :--- | :--- |
+| **v7.1 (Current)** | Stiff elastic lattice (`480×300`) + 4-phase Arch-Wave baseline + `9×9` no-overlap | [Open v7.1](https://virtualorganics.github.io/Aether-Strings/) ([direct](https://virtualorganics.github.io/Aether-Strings/v7.1.html)) | [`index.html`](index.html) / [`v7.1.html`](v7.1.html) |
+| **v7.0** | First Arch-Wave + `13×13` exclusion test on unanchored Jaumann–Maxwell core | [Open v7.0](https://virtualorganics.github.io/Aether-Strings/v7.0.html) | [`v7.0.html`](v7.0.html) |
+| **v6.1** | Stiff Jaumann–Maxwell core + `∇·σ` stress-gradient modal sensing | [Open v6.1](https://virtualorganics.github.io/Aether-Strings/v6.1.html) | [`v6.1.html`](v6.1.html) |
+| **v6.0** | First unanchored momentum-conserving viscoelastic core (`13`-marker Peskin) | [Open v6.0](https://virtualorganics.github.io/Aether-Strings/v6.0.html) | [`v6.0.html`](v6.0.html) |
+| **v5.1 Ablations** | `T1–T4` falsification & conservation telemetry suite for `v5.1` | [Open v5.1 Ablations](https://virtualorganics.github.io/Aether-Strings/v5.1-ablations.html) | [`v5.1-ablations.html`](v5.1-ablations.html) |
+| **v5.1** | Modal-wavepacket `1.5`-sine Fourier body + `320×200` stiff viscoelastic lattice | [Open v5.1](https://virtualorganics.github.io/Aether-Strings/v5.1.html) | [`v5.1.html`](v5.1.html) |
+| **v5.0** | Early continuous `1.5`-sine Fourier modal body | [Open v5.0](https://virtualorganics.github.io/Aether-Strings/v5.0.html) | [`v5.0.html`](v5.0.html) |
+| **v4.4** | Continuous lattice & drafting iterations | [Open v4.4](https://virtualorganics.github.io/Aether-Strings/v4.4.html) | [`v4.4.html`](v4.4.html) |
+| **v4.3** | Lattice coupling iteration | [Open v4.3](https://virtualorganics.github.io/Aether-Strings/v4.3.html) | [`v4.3.html`](v4.3.html) |
+| **v4.2** | Lattice coupling iteration | [Open v4.2](https://virtualorganics.github.io/Aether-Strings/v4.2.html) | [`v4.2.html`](v4.2.html) |
+| **v4.1** | Lattice coupling iteration | [Open v4.1](https://virtualorganics.github.io/Aether-Strings/v4.1.html) | [`v4.1.html`](v4.1.html) |
+| **v3.0** | Early flapping-wave sandbox | [Open v3.0](https://virtualorganics.github.io/Aether-Strings/v3.html) | [`v3.html`](v3.html) |
+| **v2.1** | Early prototype iteration | [Open v2.1](https://virtualorganics.github.io/Aether-Strings/v2.1.html) | [`v2.1.html`](v2.1.html) |
+| **v2.0** | Early prototype iteration | [Open v2.0](https://virtualorganics.github.io/Aether-Strings/v2.html) | [`v2.html`](v2.html) |
+| **Stage 1** | Initial milestone prototype | [Open Stage 1](https://virtualorganics.github.io/Aether-Strings/stage1-milestone.html) | [`stage1-milestone.html`](stage1-milestone.html) |
 
 ---
 
@@ -119,7 +93,7 @@ All previous milestone snapshots are preserved alongside `v5.1` and accessible d
 
 Released under the [MIT License](LICENSE) — free to explore, fork, port (e.g., to 3D, WebGPU, or CUDA), and build upon with attribution.
 
-If you build on this model, reference the `cos(πu)` wave-body formulation, or extend it toward 3D loops/knots, please credit:
+If you build on this model, reference the Arch-Wave or `cos(πu)` formulations, or extend it toward 3D loops/knots, please credit:
 
-> **Michel Van de gaer (VirtualOrganics)** — *Aether-Strings: Flapping Vibrations (v5.1)*, 2026.  
+> **Michel Van de gaer (VirtualOrganics)** — *Aether-Strings: Flapping Vibrations (v7.1 Arch-Wave Milestone)*, 2026.  
 > https://github.com/VirtualOrganics/Aether-Strings
