@@ -207,7 +207,7 @@
     <canvas id="glcanvas"></canvas>
     <div id="hud">
       <div><strong id="mode-label">1. Single Bow (t₀→t₁→t₂→t₀')</strong> &nbsp;|&nbsp; Groups: <strong>256 Slots</strong> &nbsp;|&nbsp; Stiff Lattice: <strong>480 × 300</strong> (120×75)</div>
-      <div id="stats-line">Time: 0.0s &nbsp;|&nbsp; FPS: 60 &nbsp;|&nbsp; c₀: 7.07 c/s &nbsp;|&nbsp; Zoom: 5.2×</div>
+      <div id="stats-line">Time: 0.0s &nbsp;|&nbsp; FPS: 60 &nbsp;|&nbsp; c₀: 6.71 c/s &nbsp;|&nbsp; Zoom: 5.2×</div>
       <div id="telemetry-line">Initializing stiff lattice...</div>
       <div style="margin-top:4px;color:#9aa8ba;">
         <span class="key">Space</span> Toggle Zoom &nbsp;
@@ -266,20 +266,20 @@
     <div class="section">
       <div class="section-title">4-Panel Curved-Bow Group (No Clock)</div>
       <div class="control">
-        <div class="control-header"><span>Group Push Speed (V_p)</span><span class="control-val" id="val-vpush">3.2</span></div>
-        <input type="range" id="sl-vpush" min="0.8" max="6.0" step="0.1" value="3.2" />
+        <div class="control-header"><span>Group Push Speed (V_p)</span><span class="control-val" id="val-vpush">2.5</span></div>
+        <input type="range" id="sl-vpush" min="0.8" max="6.0" step="0.1" value="2.5" />
       </div>
       <div class="control">
-        <div class="control-header"><span>Compression Rebound (k_w)</span><span class="control-val" id="val-wall">68.0</span></div>
-        <input type="range" id="sl-wall" min="10.0" max="140.0" step="1.0" value="68.0" />
+        <div class="control-header"><span>Compression Rebound (k_w)</span><span class="control-val" id="val-wall">92.0</span></div>
+        <input type="range" id="sl-wall" min="10.0" max="140.0" step="1.0" value="92.0" />
       </div>
       <div class="control">
-        <div class="control-header"><span>Coherence Sustain</span><span class="control-val" id="val-sustain">7.6</span></div>
-        <input type="range" id="sl-sustain" min="0.0" max="12.0" step="0.2" value="7.6" />
+        <div class="control-header"><span>Coherence Sustain</span><span class="control-val" id="val-sustain">11.0</span></div>
+        <input type="range" id="sl-sustain" min="0.0" max="12.0" step="0.2" value="11.0" />
       </div>
       <div class="control">
-        <div class="control-header"><span>Bow Arch Depth (A)</span><span class="control-val" id="val-waveamp">0.44</span></div>
-        <input type="range" id="sl-waveamp" min="0.10" max="0.65" step="0.02" value="0.44" />
+        <div class="control-header"><span>Bow Arch Depth (A)</span><span class="control-val" id="val-waveamp">0.52</span></div>
+        <input type="range" id="sl-waveamp" min="0.10" max="0.65" step="0.02" value="0.52" />
       </div>
       <div class="control">
         <div class="control-header"><span>Isolated Fade (0=Forever)</span><span class="control-val" id="val-fade">0.00</span></div>
@@ -294,44 +294,44 @@
     <div class="section">
       <div class="section-title">Stiff Elastic Lattice (480 × 300)</div>
       <div class="control">
-        <div class="control-header"><span>Bulk Stiffness (K)</span><span class="control-val" id="val-stiff">72.0</span></div>
-        <input type="range" id="sl-stiff" min="15.0" max="160.0" step="1.0" value="72.0" />
+        <div class="control-header"><span>Bulk Stiffness (K)</span><span class="control-val" id="val-stiff">41.0</span></div>
+        <input type="range" id="sl-stiff" min="15.0" max="160.0" step="1.0" value="41.0" />
       </div>
       <div class="control">
-        <div class="control-header"><span>Shear Rigidity (&mu;, Bark Wrap)</span><span class="control-val" id="val-shear">22.0</span></div>
-        <input type="range" id="sl-shear" min="0.0" max="60.0" step="1.0" value="22.0" />
+        <div class="control-header"><span>Shear Rigidity (&mu;, Bark Wrap)</span><span class="control-val" id="val-shear">4.0</span></div>
+        <input type="range" id="sl-shear" min="0.0" max="60.0" step="1.0" value="4.0" />
       </div>
       <div class="control">
-        <div class="control-header"><span>Medium Heaviness (&rho;₀)</span><span class="control-val" id="val-heavy">1.8</span></div>
-        <input type="range" id="sl-heavy" min="0.5" max="6.0" step="0.1" value="1.8" />
+        <div class="control-header"><span>Medium Heaviness (&rho;₀)</span><span class="control-val" id="val-heavy">1.0</span></div>
+        <input type="range" id="sl-heavy" min="0.5" max="6.0" step="0.1" value="1.0" />
       </div>
       <div class="control">
-        <div class="control-header"><span>Group &rarr; Lattice Push</span><span class="control-val" id="val-push">95.0</span></div>
-        <input type="range" id="sl-push" min="10.0" max="180.0" step="1.0" value="95.0" />
+        <div class="control-header"><span>Group &rarr; Lattice Push</span><span class="control-val" id="val-push">42.0</span></div>
+        <input type="range" id="sl-push" min="10.0" max="180.0" step="1.0" value="42.0" />
       </div>
       <div class="control">
-        <div class="control-header"><span>Bulk Wave Damping (&gamma;<sub>B</sub>)</span><span class="control-val" id="val-bulkdamp">1.20</span></div>
-        <input type="range" id="sl-bulkdamp" min="0.2" max="5.0" step="0.05" value="1.20" />
+        <div class="control-header"><span>Bulk Wave Damping (&gamma;<sub>B</sub>)</span><span class="control-val" id="val-bulkdamp">2.05</span></div>
+        <input type="range" id="sl-bulkdamp" min="0.2" max="5.0" step="0.05" value="2.05" />
       </div>
       <div class="control">
-        <div class="control-header"><span>Shear/Curl Damping (&gamma;<sub>S</sub>)</span><span class="control-val" id="val-sheardamp">0.48</span></div>
-        <input type="range" id="sl-sheardamp" min="0.1" max="3.0" step="0.05" value="0.48" />
+        <div class="control-header"><span>Shear/Curl Damping (&gamma;<sub>S</sub>)</span><span class="control-val" id="val-sheardamp">2.30</span></div>
+        <input type="range" id="sl-sheardamp" min="0.1" max="3.0" step="0.05" value="2.30" />
       </div>
     </div>
 
     <div class="section">
       <div class="section-title">Medium-Only Steering &amp; Coupling</div>
       <div class="control">
-        <div class="control-header"><span>Strain Gradient Steer (-&nabla;P)</span><span class="control-val" id="val-psteer">2.2</span></div>
-        <input type="range" id="sl-psteer" min="0.0" max="6.0" step="0.1" value="2.2" />
+        <div class="control-header"><span>Strain Gradient Steer (-&nabla;P)</span><span class="control-val" id="val-psteer">4.4</span></div>
+        <input type="range" id="sl-psteer" min="0.0" max="6.0" step="0.1" value="4.4" />
       </div>
       <div class="control">
-        <div class="control-header"><span>Lattice Flow &amp; Curl Torque</span><span class="control-val" id="val-flowtorque">1.1</span></div>
-        <input type="range" id="sl-flowtorque" min="0.0" max="4.0" step="0.1" value="1.1" />
+        <div class="control-header"><span>Lattice Flow &amp; Curl Torque</span><span class="control-val" id="val-flowtorque">3.3</span></div>
+        <input type="range" id="sl-flowtorque" min="0.0" max="4.0" step="0.1" value="3.3" />
       </div>
       <div class="control">
-        <div class="control-header"><span>Asym Flank Flex</span><span class="control-val" id="val-twist">0.85</span></div>
-        <input type="range" id="sl-twist" min="0.0" max="2.5" step="0.05" value="0.85" />
+        <div class="control-header"><span>Asym Flank Flex</span><span class="control-val" id="val-twist">2.05</span></div>
+        <input type="range" id="sl-twist" min="0.0" max="2.5" step="0.05" value="2.05" />
       </div>
     </div>
 
@@ -382,21 +382,21 @@
   const extFloatBlend = gl.getExtension('EXT_float_blend');
 
   const params = {
-    vPush: 3.2,
-    wallRebound: 68.0,
-    sustain: 7.6,
-    waveAmp: 0.44,
+    vPush: 2.5,
+    wallRebound: 92.0,
+    sustain: 11.0,
+    waveAmp: 0.52,
     isolatedFade: 0.00,
     spawn: 0.00,
-    bulkStiff: 72.0,
-    shearRigid: 22.0,
-    heaviness: 1.8,
-    birdPush: 95.0,
-    bulkDamp: 1.20,
-    shearDamp: 0.45,
-    pressSteer: 2.2,
-    flowTorque: 1.1,
-    twistDrive: 0.85,
+    bulkStiff: 41.0,
+    shearRigid: 4.0,
+    heaviness: 1.0,
+    birdPush: 42.0,
+    bulkDamp: 2.05,
+    shearDamp: 2.30,
+    pressSteer: 4.4,
+    flowTorque: 3.3,
+    twistDrive: 2.05,
     showFoam: true,
     showFlow: true,
     showCurl: true,
