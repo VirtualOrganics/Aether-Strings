@@ -278,6 +278,10 @@
         <input type="range" id="sl-sustain" min="0.0" max="12.0" step="0.2" value="11.0" />
       </div>
       <div class="control">
+        <div class="control-header"><span>Vibration Size</span><span class="control-val" id="val-size">1.00×</span></div>
+        <input type="range" id="sl-size" min="0.35" max="2.20" step="0.05" value="1.00" />
+      </div>
+      <div class="control">
         <div class="control-header"><span>Bow Arch Depth (A)</span><span class="control-val" id="val-waveamp">0.52</span></div>
         <input type="range" id="sl-waveamp" min="0.10" max="0.65" step="0.02" value="0.52" />
       </div>
@@ -385,6 +389,7 @@
     vPush: 2.5,
     wallRebound: 92.0,
     sustain: 11.0,
+    sizeScale: 1.00,
     waveAmp: 0.52,
     isolatedFade: 0.00,
     spawn: 0.00,
@@ -561,6 +566,7 @@
   uniform sampler2D uBirdA;
   uniform sampler2D uBirdB;
   uniform sampler2D uBirdC;
+  uniform float uSizeScale;
 
   out vec2 vWorldPos;
   out vec2 vCenter;
@@ -584,7 +590,7 @@
 
     vec4 bA = texelFetch(uBirdA, ivec2(birdIdx, 0), 0);
     vec4 bC = texelFetch(uBirdC, ivec2(birdIdx, 0), 0);
-    float size = bB.g;
+    float size = bB.g * uSizeScale;
     float L = BOW_L * size;
     float halfBox = 2.0 * L + 0.55 * size;
 
@@ -615,6 +621,7 @@
   uniform float uWaveAmp;
   uniform float uBirdPush;
   uniform float uVPush;
+  uniform float uSizeScale;
 
   out vec4 outForce;
 
@@ -624,7 +631,7 @@
     float life = vB.r;
     if (life <= 0.001) discard;
 
-    float size = vB.g;
+    float size = vB.g * uSizeScale;
     float vAxial = vA.a;
     float qs = vB.b;
     float vqs = vB.a;
@@ -635,7 +642,7 @@
     vec2 dir = vec2(cos(vA.b), sin(vA.b));
     vec2 perp = vec2(-dir.y, dir.x);
     float L = BOW_L * size;
-    float sig = 0.23 * size; // Tight, sharp local compression footprint!
+    float sig = max(0.23 * size, 0.14); // Tight, sharp local compression footprint (safe down to 0.35x!)
     float invTwoSig2 = 0.5 / (sig * sig);
 
     float lifeMask = smoothstep(0.0, 0.25, life);
@@ -818,6 +825,7 @@
   uniform float uWallRebound;
   uniform float uBulkStiff;
   uniform float uSustain;
+  uniform float uSizeScale;
   uniform float uWaveAmp;
   uniform float uIsolatedFade;
   uniform float uPressSteer;
@@ -861,7 +869,7 @@
             vec4 jB = texelFetch(uBirdB, ivec2(j, 0), 0);
             if (jB.r <= 0.001) continue;
             vec4 jA = texelFetch(uBirdA, ivec2(j, 0), 0);
-            if (length(wrapDelta(jA.rg - candPos)) < 2.3) {
+            if (length(wrapDelta(jA.rg - candPos)) < 2.3 * uSizeScale) {
               clear = false;
               break;
             }
@@ -886,7 +894,8 @@
     vec2 pos = bA.rg;
     float angle = bA.b;
     float vAxial = bA.a;
-    float size = bB.g;
+    float baseSize = bB.g;
+    float size = baseSize * uSizeScale;
     float qs = bB.b;
     float vqs = bB.a;
     float qa = bC.r;
@@ -992,7 +1001,7 @@
       if (jB.r <= 0.02) continue;
       vec4 jA = texelFetch(uBirdA, ivec2(j, 0), 0);
       vec2 dCenter = wrapDelta(pos - jA.rg);
-      float jSize = jB.g;
+      float jSize = jB.g * uSizeScale;
       float avgSize = 0.5 * (size + jSize);
       float maxR = 2.45 * avgSize;
       float d2c = dot(dCenter, dCenter);
@@ -1076,7 +1085,7 @@
     }
 
     outA = vec4(pos, angle, vAxial);
-    outB = vec4(life, size, qs, vqs);
+    outB = vec4(life, baseSize, qs, vqs);
     outC = vec4(qa, vqa, omegaBody, glideMetric);
   }`;
 
@@ -1178,6 +1187,7 @@
   uniform vec2 uRes;
   uniform float uZoom;
   uniform vec2 uZoomCenter;
+  uniform float uSizeScale;
 
   out vec2 vWorldPos;
   out vec2 vCenter;
@@ -1208,7 +1218,7 @@
     if (aspect > gridAspect) viewSize.x = viewSize.y * aspect;
     else viewSize.y = viewSize.x / aspect;
 
-    float size = bB.g;
+    float size = bB.g * uSizeScale;
     float L = BOW_L * size;
     float halfBox = 1.65 * L + 0.35 * size;
     vec2 bCenter = bA.rg + vec2(float(tx), float(ty)) * WORLD;
@@ -1239,6 +1249,7 @@
 
   uniform vec2 uRes;
   uniform float uZoom;
+  uniform float uSizeScale;
   uniform float uWaveAmp;
   uniform float uVPush;
 
@@ -1264,7 +1275,7 @@
     else viewSize.y = viewSize.x / aspect;
     float pxSize = viewSize.y / max(uRes.y, 1.0);
 
-    float size = vB.g;
+    float size = vB.g * uSizeScale;
     float L = BOW_L * size;
     float vAxial = vA.a;
     float qs = vB.b;
@@ -1532,6 +1543,7 @@
   bindSlider('sl-vpush', 'val-vpush', 'vPush', v => v.toFixed(1));
   bindSlider('sl-wall', 'val-wall', 'wallRebound', v => v.toFixed(1));
   bindSlider('sl-sustain', 'val-sustain', 'sustain', v => v.toFixed(1));
+  bindSlider('sl-size', 'val-size', 'sizeScale', v => v.toFixed(2) + '×');
   bindSlider('sl-waveamp', 'val-waveamp', 'waveAmp', v => v.toFixed(2));
   bindSlider('sl-fade', 'val-fade', 'isolatedFade', v => v.toFixed(2));
   bindSlider('sl-spawn', 'val-spawn', 'spawn', v => v.toFixed(2));
@@ -1671,6 +1683,7 @@
     gl.uniform1f(gl.getUniformLocation(progP2G, 'uWaveAmp'), params.waveAmp);
     gl.uniform1f(gl.getUniformLocation(progP2G, 'uBirdPush'), params.birdPush);
     gl.uniform1f(gl.getUniformLocation(progP2G, 'uVPush'), params.vPush);
+    gl.uniform1f(gl.getUniformLocation(progP2G, 'uSizeScale'), params.sizeScale);
 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
@@ -1728,6 +1741,7 @@
     gl.uniform1f(gl.getUniformLocation(progUpdate, 'uWallRebound'), params.wallRebound);
     gl.uniform1f(gl.getUniformLocation(progUpdate, 'uBulkStiff'), params.bulkStiff);
     gl.uniform1f(gl.getUniformLocation(progUpdate, 'uSustain'), params.sustain);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uSizeScale'), params.sizeScale);
     gl.uniform1f(gl.getUniformLocation(progUpdate, 'uWaveAmp'), params.waveAmp);
     gl.uniform1f(gl.getUniformLocation(progUpdate, 'uIsolatedFade'), params.isolatedFade);
     gl.uniform1f(gl.getUniformLocation(progUpdate, 'uPressSteer'), params.pressSteer);
@@ -1756,22 +1770,24 @@
 
   function computeMinGap(alive) {
     let minGap = 99.0;
+    const sc = params.sizeScale;
+    const maxR2 = (3.0 * Math.max(sc, 1.0)) * (3.0 * Math.max(sc, 1.0));
     for (let a = 0; a < alive.length; a++) {
-      const A = alive[a], adx = Math.cos(A.ang), ady = Math.sin(A.ang), apx = -ady, apy = adx, aL = BOW_HALF_LEN * A.sz;
+      const A = alive[a], aSz = A.sz * sc, adx = Math.cos(A.ang), ady = Math.sin(A.ang), apx = -ady, apy = adx, aL = BOW_HALF_LEN * aSz;
       for (let b = a + 1; b < alive.length; b++) {
         const B = alive[b];
         let dcx = A.x - B.x, dcy = A.y - B.y;
         if (dcx > WORLD_W * 0.5) dcx -= WORLD_W; else if (dcx < -WORLD_W * 0.5) dcx += WORLD_W;
         if (dcy > WORLD_H * 0.5) dcy -= WORLD_H; else if (dcy < -WORLD_H * 0.5) dcy += WORLD_H;
-        if (dcx * dcx + dcy * dcy > 9.0) continue;
-        const bdx = Math.cos(B.ang), bdy = Math.sin(B.ang), bpx = -bdy, bpy = bdx, bL = BOW_HALF_LEN * B.sz;
+        if (dcx * dcx + dcy * dcy > maxR2) continue;
+        const bSz = B.sz * sc, bdx = Math.cos(B.ang), bdy = Math.sin(B.ang), bpx = -bdy, bpy = bdx, bL = BOW_HALF_LEN * bSz;
         for (let mk = 0; mk < NUM_MARKERS; mk++) {
           const um = (mk - 0.5 * (NUM_MARKERS - 1)) * (2.0 / NUM_MARKERS);
-          const ay = params.waveAmp * A.sz * (A.qs * phiBowJS(um) + A.qa * phiAJS(um));
+          const ay = params.waveAmp * aSz * (A.qs * phiBowJS(um) + A.qa * phiAJS(um));
           const amx = apx * (um * aL) + adx * ay, amy = apy * (um * aL) + ady * ay;
           for (let nk = 0; nk < NUM_MARKERS; nk++) {
             const un = (nk - 0.5 * (NUM_MARKERS - 1)) * (2.0 / NUM_MARKERS);
-            const by = params.waveAmp * B.sz * (B.qs * phiBowJS(un) + B.qa * phiAJS(un));
+            const by = params.waveAmp * bSz * (B.qs * phiBowJS(un) + B.qa * phiAJS(un));
             const bmx = bpx * (un * bL) + bdx * by, bmy = bpy * (un * bL) + bdy * by;
             const d = Math.hypot(dcx + amx - bmx, dcy + amy - bmy);
             if (d < minGap) minGap = d;
@@ -1894,6 +1910,7 @@
     gl.uniform2f(gl.getUniformLocation(progDisplayBirds, 'uRes'), canvas.width, canvas.height);
     gl.uniform1f(gl.getUniformLocation(progDisplayBirds, 'uZoom'), currentZoom);
     gl.uniform2f(gl.getUniformLocation(progDisplayBirds, 'uZoomCenter'), params.zoomCenter[0], params.zoomCenter[1]);
+    gl.uniform1f(gl.getUniformLocation(progDisplayBirds, 'uSizeScale'), params.sizeScale);
     gl.uniform1f(gl.getUniformLocation(progDisplayBirds, 'uWaveAmp'), params.waveAmp);
     gl.uniform1f(gl.getUniformLocation(progDisplayBirds, 'uVPush'), params.vPush);
 
@@ -1922,6 +1939,7 @@
   if (urlQs.has('shear'))   setSlider('sl-shear', 'val-shear', 'shearRigid', parseFloat(urlQs.get('shear')), v => v.toFixed(1));
   if (urlQs.has('wall'))    setSlider('sl-wall', 'val-wall', 'wallRebound', parseFloat(urlQs.get('wall')), v => v.toFixed(1));
   if (urlQs.has('sustain')) setSlider('sl-sustain', 'val-sustain', 'sustain', parseFloat(urlQs.get('sustain')), v => v.toFixed(1));
+  if (urlQs.has('size'))    setSlider('sl-size', 'val-size', 'sizeScale', parseFloat(urlQs.get('size')), v => v.toFixed(2) + '×');
   if (urlQs.has('vpush'))   setSlider('sl-vpush', 'val-vpush', 'vPush', parseFloat(urlQs.get('vpush')), v => v.toFixed(1));
 
   seedPreset(urlQs.get('preset') || 'single');
