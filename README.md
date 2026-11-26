@@ -1,16 +1,54 @@
-# Aether-Strings — Flapping Vibrations (v7.1 Arch-Wave Milestone)
+# Aether-Strings — Flapping Vibrations (v7.8 Zero-Glue Two-Way IB Milestone)
 
 **Live in-browser demo (WebGL2):** https://virtualorganics.github.io/Aether-Strings/
 
 ---
 
-## New Direction (`v7.1`): Simplifying the Cosine-Wave into an Arch-Wave
+## New Milestone (`v7.8`): The `t₀ → t₅` Stepping-Stone Mechanism & Zero-Glue Two-Way Immersed Boundary
 
-Earlier versions (`v1`–`v5.1`) modeled each vibration as a 1.5-period `cos(πu)` flapping string where the center flipped opposite the wingtips on an oscillator clock. Starting with **`v7.1`**, we simplify the baseline unit into an **Arch-Wave**—a single tightly packed group of particles inside a mega-dense, stiff elastic medium that dents the medium deeply, hits maximum compression, and rebounds back and forth without a hardcoded frequency clock:
+Building on `v7.1`'s clock-free Arch-Wave, **`v7.8`** implements the full **`t₀ → t₅` curling stepping-stone cascade** inside a hyper-stiff, ultra-dense elastic medium using **true two-way semi-implicit Immersed Boundary (no-slip) traction** — with **zero pairwise wafer glue** (no pairwise anti-cavitation springs, no pairwise velocity dampers, no pairwise shear locks, and no prescribed curve angles).
+
+![Curling Stepping-Stone Mechanism (t0 to t5)](assets/stepping-stone-cycle.png)
+
+**How a single vibration grows into a synchronized train (`t₀ → t₅`):**
+
+- **`t₀` – Forward Push (North):** The active arch pushes North, compressing the medium ahead (`+δρ`, orange) while parting and curling the medium symmetrically around its flanks (`+curl` green / `-curl` purple).
+- **`t₁` – Stagnation & Curling New Layer:** At peak compression, the medium pushes back as the curling flank flow wraps directly behind the dent, condensing a **strictly dormant, flat, motionless (`v = 0, qs = 0`) New Basis** (`- - - → ___`) at density-tuned distance $d_{\text{step}}(Z, \mu)$.
+  - *Tuning key:* In an ultra-dense medium ($Z = 84.6$, $d_{\text{step}} = 0.40$), the basis condenses right behind the arch. In a **Soft Medium** ($Z = 6.8$, $d_{\text{step}} = 1.16$), the curl spreads far behind, the returning arch physically misses the basis, and it dissolves harmlessly (`0` activations).
+- **`t₂` – Return Toward the New Basis:** The compressed North wall pushes the original group back South toward the solidified basis sitting directly behind it.
+- **`t₃` – Strictly Inelastic (`e = 0`) Push & Birth of Follow-Up Group:** The returning arch physically collides with the dormant basis with **zero internal bounce-off** ($e = 0$). Both immediately share the exact center-of-mass downward speed ($v_{\text{cm}} = \frac{1}{2} v_{\text{striker}}$) and keep pressing South **together** (`︶ / ︶`) into the dense medium underneath.
+- **`t₄` – Medium-Only Collective Rebound:** All rebound force comes purely from the compressed medium underneath, pushing both the old and newly activated follow-up group North together (`⌒ / ⌒`) in locked rhythm.
+- **`t₅` – Outer Bark-Flow & Next Layer:** Continuous outer bark-flow shear curls wrap down the flanks of the growing stack and condense the next dormant layer behind the open tail without cutting into the middle of the stack.
+
+---
+
+## Physics Architecture (`v7.8` Zero-Glue Audit Core)
+
+1. **Ultra-Stiff, Low-Mach Elastic Displacement Lattice (`600 × 375` over `120 × 75`, `H = 0.20`):**
+   - Evolves 2D lattice displacement $\mathbf{s}(x,y)$ and velocity $\mathbf{v}(x,y)$ with nonlinear bulk stress $P(\delta\rho)$ (hardening in compression **and** resisting cavitation in tension), jammed-solid shear rigidity $\mu$, and strain-dependent heaviness $\rho_{\text{eff}}(\delta\rho)$.
+   - Default ultra-stiff medium (`K = 950`, `μ = 480`, `ρ₀ = 5.0`) yields sound speed **$c_0 = 16.91\text{ c/s}$**, acoustic impedance **$Z = 84.6$**, and low Mach number **$Ma = 0.12$**, stretching the coherent half-wavelength $\lambda/2$ across ~16–20 stacked arches.
+   - Includes a smooth **absorbing sponge rim** around the outer border so radiated waves don’t wrap around and contaminate the active packet, plus a **strict fixed timestep (`FIXED_DT = 1/240 s`)** so `60 Hz`, `120 Hz`, and `144 Hz` browsers run bit-for-bit identical dynamics.
+2. **True Two-Way Semi-Implicit Immersed Boundary (No-Slip) Traction:**
+   - Instead of open-loop pressure blasting or hand-crafted pairwise glue between arches, each active arch splats its real surface velocity and Gaussian occupancy mask $W(\mathbf{x})$ to the grid, and every medium substep implicitly relaxes lattice velocity toward the immersed arch surface:
+     $$\mathbf{v}_{\text{new}} = \frac{\mathbf{v} + \mathbf{a}_{\text{elastic}}\,\Delta t + (\alpha_{\text{IB}}\,\Delta t)\,\mathbf{v}_{\text{arch}}}{1 + (\alpha_{\text{IB}} + \gamma)\,\Delta t}$$
+   - Arches receive the direct grid pressure jump `-(pFront - pBack)`, semi-implicit axial IB velocity reaction, grid shear torque, and lateral lattice velocity $v_{\text{med},\perp}$ back from the PDE.
+   - **Result with ZERO pairwise wafer glue:**
+     - **Pure IB Dense Climb (`22s` stress test):** Grows cleanly to **`23` active arches** (`56` reversals, **`100%` phase sync**, `LatSlip = 0.00`, `MinGap = 0.25`, `120 FPS`) with authentic longitudinal breathing ripples and zero top split-off or sideways plate-slip.
+     - **Tight Closed Ring (`16` arches):** Locks into a symmetric 16-fold chiral pinwheel soliton (`100%` sync, `MinGap = 0.24`, `120 FPS`) with a visible trapped warm-orange pressure core inside a blue rarefaction halo.
+     - **Soft Medium (`Z = 6.8`):** Cleanly misses its distant dormant basis (`activeCount = 1`, `0` activations).
+3. **Calibrated Soft-Knee Tone Mapping & Clean HUD:**
+   - Uses soft-knee compression (`x / (x + knee)`) for both vacuum strain ($\delta\rho$) and vorticity ($\nabla \times \mathbf{v}$) so single waves stay readable while 20+ arch trains retain crisp spatial contrast without clipping into neon saturation. Press **`H`** to toggle the compact HUD.
+
+> **Honest Scientific Audit & Next Research Steps:**
+> While `v7.8` eliminates all pairwise inter-arch glue and keeps coupling 100% grid-mediated (aside from hard-core `e = 0` non-overlap contact), two simplifying assumptions remain on our current middle-of-the-road hybrid model: (1) arches are still Lagrangian 9-marker bodies coupled to the Eulerian grid rather than pure continuum PDE solitons, and (2) each active arch carries a modest `Radiation-Loss Sustain` term to offset 2D acoustic wave radiation. Our `v7.7` curving-caterpillar experiments also visually confirmed that bending a train in **2D** traps high-pressure medium inside the concave curve with nowhere to escape — pointing directly to our next major steps: **authentic (non-prescribed) curving mechanisms** and lifting the Zero-Glue IB core into **3D** where trapped inner-curve pressure can vent naturally along the **Z-axis** into true toroidal vortices and knots.
+
+---
+
+## Foundational Arch-Wave Cycle (`v7.1` Baseline)
+
+Starting with **`v7.1`**, the baseline unit shifted from earlier `cos(πu)` clock-driven flapping strings (`v1`–`v5.1`) to a clock-free **Arch-Wave** that compresses, stagnates, and rebounds purely against the stiff elastic medium:
 
 ![Simplifying the previous Cosine-Wave into an Arch-Wave](assets/arch-wave-cycle.png)
-
-**Simplifying the previous Cosine-Wave into an Arch-Wave:**
 
 - **`t₀` – Forward Push (North):** Tightly packed particles move as a unit, denting and compressing the medium to the North.
 - **`t₁` – Stagnation & Containment:** At max compression, the medium pushes back and curves around the sides like tree bark, squeezing the group tight as forward motion stalls.
@@ -19,37 +57,17 @@ Earlier versions (`v1`–`v5.1`) modeled each vibration as a 1.5-period `cos(πu
 
 ---
 
-## Medium / Vibrations Model (`v7.1` Architecture)
+## Development History: From `v5.1` to `v7.8`
 
-`v7.1` returns to the conceptual foundation of **`v5.1`**—a **stiff elastic displacement lattice** representing a vast, mega-dense vibrating medium—while upgrading the scale, replacing the `1.5` cosine wave with the clock-free Arch-Wave, removing direct neighbor-perception crutches, and eliminating curve overlaps:
+Every milestone and intermediate lab build is preserved in the live version archive so behaviors can be compared side-by-side in the browser:
 
-- **High-resolution stiff elastic displacement lattice (`480 × 300` over a `120 × 75` world, `H = 0.25`):**
-  Evolves lattice displacement $\mathbf{s}(x,y)$ and velocity $\mathbf{v}(x,y)$ via staggered-face Cauchy stress with nonlinear cubic hard-packing compression ($d + 2.8 d^2 + 24 d^3$ for $\delta\rho \ge 0$, softened $0.82 d$ in tension), shear rigidity $\mu$, density-dependent heaviness $\rho_{\text{eff}}(\delta\rho)$, and live deformed lattice lines that visibly pinch ahead of each arch and curve around its flanks like tree bark.
-  - **Orange** = compressed, stiffer medium pushing back ($\delta\rho > 0$)
-  - **Blue / Cyan** = stretched-out tension wake ($\delta\rho < 0$)
-  - **Deforming lattice grid** = elastic shear & tree-bark wrapping around active arches
-- **Compact Arch-Wave scale (`256` continuous slots, `L = 0.85`):**
-  Each arch-string spans `1.70` world units (`1.4%` of the `120`-unit arena width), preserving the sense of small localized coherent groups emerging inside a vast, fine-grained elastic medium (`180+` active arches with spontaneous emergence in `Pure Soup`).
-- **Clock-free 4-phase compression–rebound (`t₀ → t₁ → t₂ → t'₀`):**
-  Replaces the `cos(πu)` stroke and fixed `-ω₀² q` frequency clock with a single zero-mean arch dome $\phi_{\text{bow}}(u) = \cos(\frac{\pi}{2}u) - 0.6388$ whose curvature bends dynamically (`∩ ↔ ∪`) with motion and local lattice compression. Rebound timing emerges from the medium's bulk stiffness $K$ and nonlinear compression wall rather than a hardcoded frequency.
-- **Exact `9 × 9` curve-to-curve exclusion:**
-  Marker-to-marker hard-core repulsion and contact rebound prevent arch-strings from intersecting or ghost-overlapping at any collision angle (`Crossed 90°`, `Head-On`, `Closed Ring`, and `Pure Soup`).
-- **Zero `leaderCue` / `rearFollower` / `fCruise` perception crutches:**
-  Steering and multi-arch coupling act through local lattice pressure gradients, curl, and direct curve contact.
-
-> **Work-in-progress note:** `v7.1` establishes the new **Arch-Wave** visual and conceptual baseline on top of the stiff displacement lattice. Deeper physical refinement—including strict continuum momentum/energy conservation, natural symmetry-breaking pair/chain gliding from pure two-way stress transfer, and lifting to 3D loops and knots—is left for the next research milestones.
-
----
-
-## Development History: From `v5.1` to `v7.1`
-
-Every intermediate experiment is preserved in the live version archive so behaviors can be compared directly in the browser:
-
-1. **`v5.1` (`v5.1.html`) — 1.5-Sine Cosine Sandbox:** Established the stiff elastic displacement lattice, twin `[L]`/`[R]` drafting wakes, chains, closed rings, and soup dynamics using a 2-mode Fourier body $y(u,t) = A(q_s\cos(\pi u) + q_a\sin(\pi u))$.
-2. **`v5.1` Ablation Suite (`v5.1-ablations.html`) — Falsification Tests `T1–T4`:** Quantified which `v5.1` behaviors came from the medium versus heuristic scaffolding (`leaderCue`, `rearFollower`, `fCruise`, scripted `life`/`crowdMask`), proving that medium-reading steering works once wakes exist while `fCruise` generated most of `v5.1`'s wake.
-3. **`v6.0` & `v6.1` (`v6.0.html`, `v6.1.html`) — Momentum-Conserving Viscoelastic Core:** Tested an unanchored finite-volume Jaumann–Maxwell continuum with exact Peskin $\Delta\mathbf{p}_{\text{body}} = -\Delta\mathbf{p}_{\text{med}}$ exchange (`|ΔP_tot| ~ 1e-5`), but the Eulerian fluid-like formulation softened the medium, allowed curves to overlap in `v6.1`, and still used the artificial `cos(πu)` clock flip-flop.
-4. **`v7.0` (`v7.0.html`) — First Arch-Wave Prototype on the Fluid Core:** Replaced `cos(πu)` with a curved bow and `13 × 13` exclusion on top of `v6.1`, demonstrating clean curve separation and emergent stiffness-dependent turnaround, but exposed that the `v6` fluid grid damped isolated pushes dead and bloated the wave scale relative to the medium.
-5. **`v7.1` (`index.html` / `v7.1.html`) — Current Arch-Wave Milestone:** Returned to `v5.1`'s stiff elastic displacement lattice at `480 × 300` (`120 × 75`), restored fine-grained scale, and integrated the clock-free 4-phase Arch-Wave cycle with `9 × 9` curve exclusion.
+1. **`v5.1` (`v5.1.html`) & Ablations (`v5.1-ablations.html`):** Established the stiff elastic displacement lattice (`320 × 200`) with a 1.5-sine Fourier body and falsified heuristic crutches (`leaderCue`, `rearFollower`, `fCruise`).
+2. **`v6.0`–`v6.1` (`v6.0.html`, `v6.1.html`) & `v7.0` (`v7.0.html`):** Tested an unanchored momentum-conserving Jaumann–Maxwell fluid core and the first Arch-Wave prototype, revealing that the fluid formulation damped isolated pushes too aggressively.
+3. **`v7.1` (`v7.1.html`) — Arch-Wave Milestone:** Returned to the stiff elastic displacement lattice (`480 × 300`) with the clock-free 4-phase Arch-Wave, `9 × 9` no-overlap exclusion, and live `Vibration Size` slider.
+4. **`v7.2`–`v7.3` (`v7.2.html`, `v7.3.html`) — High-Impedance Stiffening:** Tested early tip-curl ignition (`v7.2`, which starburst-branched at soft $\mu = 4$) and tightened into a jammed high-impedance solid (`v7.3`: $K = 180, \mu = 95, \rho_0 = 4.5, Z = 35.2$) where `Tight Closed Ring (16)` stabilized into a compact toroidal soliton.
+5. **`v7.4`–`v7.5` (`v7.4.html`, `v7.5.html`) — Dormant Basis & Strictly Inelastic (`e = 0`) Contact:** Replaced pre-activated spawning with a strictly stationary flat dashed-to-solid purple `New Basis` (`v = 0, qs = 0`) and switched `t₃` contact from elastic bounce-off to strictly inelastic (`e = 0`) collision plus wake-shadow line-cut prevention (`phaseCoherence = 1.00` up to 7 arches, hitting the finite-`c₀` acoustic half-wavelength $\lambda/2$ limit past 8 arches).
+6. **`v7.6`–`v7.7` (`v7.6.html`, `v7.7.html`) — Ultra-Stiff Low-Mach Grid & Guided 2D Curving Lab:** Upgraded to `600 × 375` (`c₀ = 16.91`, `Ma = 0.12`), added fixed `1/240 s` timestepping, and tested guided 2D curving caterpillars (`v7.7`), demonstrating smooth `126°+` arcs and visually exposing the **2D trapped inner-curve pressure core** that motivates 3D Z-axis venting — while auditing where sub-grid pairwise glue and prescribed wedges departed from pure emergence.
+7. **`v7.8` (`index.html` / `v7.8.html`) — Current Zero-Glue Two-Way IB Milestone:** Stripped out *all* pairwise wafer glue and prescribed wedges, replacing open-loop force splatting with true **semi-implicit two-way Immersed Boundary (no-slip) traction** + absorbing sponge rim + calibrated soft-knee color tone mapping (`23` arches locked straight at `100%` sync & `120 FPS`, `16`-arch pinwheel soliton, clean soft-medium miss).
 
 ---
 
@@ -58,20 +76,27 @@ Every intermediate experiment is preserved in the live version archive so behavi
 This is a dependency-free WebGL2 browser application. Serve the directory with any static HTTP server (such as Python's built-in server) and open it in a WebGL2-capable browser:
 
 ```bash
-python3 -m http.server 8791
+python3 -m http.server 8793
 ```
 
-Then open `http://localhost:8791/`.
+Then open `http://localhost:8793/`.
 
 ---
 
 ## Version Archive
 
-All milestone snapshots are preserved alongside `v7.1` and accessible directly in the browser (and via the sidebar version links inside the app):
+All milestone snapshots and intermediate lab builds are preserved alongside `v7.8` and accessible directly in the browser (and via the sidebar version links inside the app):
 
 | Version | Milestone Summary | Live Browser Link | File |
 | :--- | :--- | :--- | :--- |
-| **v7.1 (Current)** | Stiff elastic lattice (`480×300`) + 4-phase Arch-Wave baseline + `9×9` no-overlap | [Open v7.1](https://virtualorganics.github.io/Aether-Strings/) ([direct](https://virtualorganics.github.io/Aether-Strings/v7.1.html)) | [`index.html`](index.html) / [`v7.1.html`](v7.1.html) |
+| **v7.8 (Current)** | **Zero-Glue Two-Way Immersed Boundary** (`600×375`, `Ma=0.12`, `e=0` `t₀→t₅`, sponge rim, soft-knee visuals) | [Open v7.8](https://virtualorganics.github.io/Aether-Strings/) ([direct](https://virtualorganics.github.io/Aether-Strings/v7.8.html)) | [`index.html`](index.html) / [`v7.8.html`](v7.8.html) |
+| **v7.7** | Guided 2D Curving Caterpillar + midpoint shear lock + fixed `1/240s` step (2D inner-pressure trap lab) | [Open v7.7](https://virtualorganics.github.io/Aether-Strings/v7.7.html) | [`v7.7.html`](v7.7.html) |
+| **v7.6** | First `600×375` ultra-stiff low-Mach grid + bow-indentation `qs` rebound (with sub-grid wafer glue) | [Open v7.6](https://virtualorganics.github.io/Aether-Strings/v7.6.html) | [`v7.6.html`](v7.6.html) |
+| **v7.5** | Strictly inelastic (`e=0`) `t₃→t₄` push + wake-shadow guard + anti-cavitation EOS (`480×300`) | [Open v7.5](https://virtualorganics.github.io/Aether-Strings/v7.5.html) | [`v7.5.html`](v7.5.html) |
+| **v7.4** | First strictly dormant flat purple `New Basis` (`v=0, qs=0`) + geometric soft-medium miss | [Open v7.4](https://virtualorganics.github.io/Aether-Strings/v7.4.html) | [`v7.4.html`](v7.4.html) |
+| **v7.3** | Jammed high-impedance solid (`K=180, μ=95, Z=35.2`) stabilizing closed toroidal solitons | [Open v7.3](https://virtualorganics.github.io/Aether-Strings/v7.3.html) | [`v7.3.html`](v7.3.html) |
+| **v7.2** | Early tip-curl ignition & starburst branching experiment (`μ=4`) | [Open v7.2](https://virtualorganics.github.io/Aether-Strings/v7.2.html) | [`v7.2.html`](v7.2.html) |
+| **v7.1** | Stiff elastic lattice (`480×300`) + 4-phase Arch-Wave baseline + `9×9` no-overlap | [Open v7.1](https://virtualorganics.github.io/Aether-Strings/v7.1.html) | [`v7.1.html`](v7.1.html) |
 | **v7.0** | First Arch-Wave + `13×13` exclusion test on unanchored Jaumann–Maxwell core | [Open v7.0](https://virtualorganics.github.io/Aether-Strings/v7.0.html) | [`v7.0.html`](v7.0.html) |
 | **v6.1** | Stiff Jaumann–Maxwell core + `∇·σ` stress-gradient modal sensing | [Open v6.1](https://virtualorganics.github.io/Aether-Strings/v6.1.html) | [`v6.1.html`](v6.1.html) |
 | **v6.0** | First unanchored momentum-conserving viscoelastic core (`13`-marker Peskin) | [Open v6.0](https://virtualorganics.github.io/Aether-Strings/v6.0.html) | [`v6.0.html`](v6.0.html) |
@@ -93,7 +118,7 @@ All milestone snapshots are preserved alongside `v7.1` and accessible directly i
 
 Released under the [MIT License](LICENSE) — free to explore, fork, port (e.g., to 3D, WebGPU, or CUDA), and build upon with attribution.
 
-If you build on this model, reference the Arch-Wave or `cos(πu)` formulations, or extend it toward 3D loops/knots, please credit:
+If you build on this model, reference the Arch-Wave, `t₀ → t₅` stepping-stone, or Zero-Glue Two-Way IB formulations, or extend it toward 3D loops/knots, please credit:
 
-> **Michel Van de gaer (VirtualOrganics)** — *Aether-Strings: Flapping Vibrations (v7.1 Arch-Wave Milestone)*, 2026.  
+> **Michel Van de gaer (VirtualOrganics)** — *Aether-Strings: Flapping Vibrations (v7.8 Zero-Glue Two-Way IB Milestone)*, 2026.  
 > https://github.com/VirtualOrganics/Aether-Strings

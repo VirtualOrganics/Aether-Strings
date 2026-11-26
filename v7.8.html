@@ -1,0 +1,2511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flapping Vibrations v7.8 — Zero-Glue Two-Way Immersed Boundary</title>
+<style>
+  :root {
+    --bg: #0b0e12;
+    --panel: #12171f;
+    --border: #232c3a;
+    --text: #dce4ee;
+    --muted: #8896a8;
+    --accent: #f07d32;
+    --accent2: #3dd6c6;
+    --purple: #d946ef;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #07090c;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
+  #hud {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(12, 16, 22, 0.80);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11.5px;
+    line-height: 1.45;
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+    max-width: 580px;
+  }
+  #hud.hidden {
+    display: none;
+  }
+  #hud .key {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: #1e2633;
+    border: 1px solid #323e52;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: #fff;
+  }
+  #telemetry-line {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: #9dd8ff;
+    margin-top: 2px;
+    word-break: break-all;
+  }
+  #sidebar {
+    width: 332px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 12.5px;
+  }
+  h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: #fff;
+  }
+  .subtitle {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .badge-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: 5px;
+  }
+  .badge {
+    font-size: 10.2px;
+    font-family: ui-monospace, monospace;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(61, 214, 198, 0.12);
+    border: 1px solid rgba(61, 214, 198, 0.35);
+    color: var(--accent2);
+  }
+  .badge.warm {
+    background: rgba(240, 125, 50, 0.15);
+    border-color: rgba(240, 125, 50, 0.42);
+    color: #fdba74;
+  }
+  .badge.purple {
+    background: rgba(217, 70, 239, 0.15);
+    border-color: rgba(217, 70, 239, 0.45);
+    color: #f0abfc;
+  }
+  .archive-links {
+    display: flex;
+    gap: 8px;
+    margin-top: 5px;
+    font-size: 11px;
+    flex-wrap: wrap;
+  }
+  .archive-link {
+    color: var(--accent2);
+    text-decoration: none;
+  }
+  .archive-link:hover {
+    text-decoration: underline;
+  }
+  .section {
+    border-top: 1px solid var(--border);
+    padding-top: 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--muted);
+  }
+  .btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  button {
+    background: #1a222e;
+    color: var(--text);
+    border: 1px solid #2b3748;
+    border-radius: 6px;
+    padding: 6px 7px;
+    font-size: 11.1px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  button:hover {
+    background: #232e3f;
+    border-color: #3d4e66;
+  }
+  button.active {
+    background: rgba(240, 125, 50, 0.18);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .control {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .control-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.3px;
+  }
+  .control-val {
+    font-family: ui-monospace, monospace;
+    color: var(--accent2);
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .legend {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11.1px;
+    color: var(--muted);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+  <div id="canvas-wrap">
+    <canvas id="glcanvas"></canvas>
+    <div id="hud">
+      <div><strong id="mode-label">1. Pure IB Dense Climb (Zero-Glue)</strong> &nbsp;|&nbsp; Lattice: <strong>600 × 375</strong></div>
+      <div id="stats-line">Time: 0.0s &nbsp;|&nbsp; FPS: 60 &nbsp;|&nbsp; c₀: 16.91 c/s &nbsp;|&nbsp; Ma: 0.12 &nbsp;|&nbsp; Z: 84.6 &nbsp;|&nbsp; d_step: 0.40 &nbsp;|&nbsp; Zoom: 5.4×</div>
+      <div id="telemetry-line">Initializing Zero-Glue two-way Immersed Boundary engine...</div>
+      <div style="margin-top:3px;color:#9aa8ba;">
+        <span class="key">Space</span> Zoom &nbsp;
+        <span class="key">P</span> Pause &nbsp;
+        <span class="key">H</span> Hide HUD &nbsp;
+        <span class="key">Click/Drag</span> Seed arch
+      </div>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div>
+      <h1>Flapping Vibrations v7.8</h1>
+      <div class="subtitle">Zero-Glue Audit — Pure Two-Way Immersed Boundary Traction</div>
+      <div class="badge-row">
+        <span class="badge warm">ZERO Pairwise Glue</span>
+        <span class="badge purple">Two-Way No-Slip IB</span>
+        <span class="badge">Inelastic e=0 Hit</span>
+        <span class="badge">Sponge Rim</span>
+      </div>
+      <div class="archive-links">
+        <a class="archive-link" href="v7.7.html">v7.7 &rarr;</a>
+        <a class="archive-link" href="v7.6.html">v7.6 &rarr;</a>
+        <a class="archive-link" href="v7.5.html">v7.5 &rarr;</a>
+        <a class="archive-link" href="v7.4.html">v7.4 &rarr;</a>
+        <a class="archive-link" href="v7.3.html">v7.3 &rarr;</a>
+        <a class="archive-link" href="v7.1.html">v7.1 &rarr;</a>
+        <a class="archive-link" href="v5.1.html">v5.1 &rarr;</a>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Presets / Zero-Glue Test Bench</div>
+      <div class="btn-grid">
+        <button id="btn-climb">1. Pure IB Climb</button>
+        <button id="btn-soft">2. Soft Medium (Misses)</button>
+        <button id="btn-ring">3. Tight Closed Ring (16)</button>
+        <button id="btn-tip-pair">4. Asymmetric Tip Pair</button>
+        <button id="btn-tip-chain">5. Nested Chain (6)</button>
+        <button id="btn-single">6. Single Arch (No Basis)</button>
+        <button id="btn-bigbang">7. Dense Big Bang Soup</button>
+        <button id="btn-cross90">8. Crossed 90°</button>
+        <button id="btn-soup">9. Dense Soup (180)</button>
+        <button id="btn-clear">Clear Grid</button>
+        <button id="btn-pause">Pause (P)</button>
+        <button id="btn-zoom" class="active">Zoom Out (Space)</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Ultra-Stiff Elastic Medium (600 × 375)</div>
+      <div class="control">
+        <div class="control-header"><span>Bulk Stiffness (K)</span><span class="control-val" id="val-stiff">950.0</span></div>
+        <input type="range" id="sl-stiff" min="25.0" max="1800.0" step="5.0" value="950.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Shear Rigidity (&mu;, Jammed Solid)</span><span class="control-val" id="val-shear">480.0</span></div>
+        <input type="range" id="sl-shear" min="4.0" max="900.0" step="2.0" value="480.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Medium Density (&rho;₀)</span><span class="control-val" id="val-heavy">5.0</span></div>
+        <input type="range" id="sl-heavy" min="0.8" max="16.0" step="0.1" value="5.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>IB No-Slip Grip (Arch &harr; Grid)</span><span class="control-val" id="val-ibgrip">950.0</span></div>
+        <input type="range" id="sl-ibgrip" min="40.0" max="1600.0" step="10.0" value="950.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Bulk Wave Damping (&gamma;<sub>B</sub>)</span><span class="control-val" id="val-bulkdamp">1.35</span></div>
+        <input type="range" id="sl-bulkdamp" min="0.2" max="5.0" step="0.05" value="1.35" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Shear/Curl Damping (&gamma;<sub>S</sub>)</span><span class="control-val" id="val-sheardamp">0.90</span></div>
+        <input type="range" id="sl-sheardamp" min="0.1" max="5.0" step="0.05" value="0.90" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Arch-Wave &amp; Pure Grid Coupling</div>
+      <div class="control">
+        <div class="control-header"><span>Basis Nest Distance</span><span class="control-val" id="val-nest">0.40×</span></div>
+        <input type="range" id="sl-nest" min="0.32" max="1.20" step="0.02" value="0.40" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Vibration Size</span><span class="control-val" id="val-size">1.00×</span></div>
+        <input type="range" id="sl-size" min="0.35" max="2.20" step="0.02" value="1.00" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Target Push Speed (V_p)</span><span class="control-val" id="val-vpush">2.0</span></div>
+        <input type="range" id="sl-vpush" min="0.5" max="4.0" step="0.1" value="2.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Grid Pressure Rebound (k_w)</span><span class="control-val" id="val-wall">175.0</span></div>
+        <input type="range" id="sl-wall" min="20.0" max="320.0" step="2.0" value="175.0" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Radiation-Loss Sustain</span><span class="control-val" id="val-sustain">14.5</span></div>
+        <input type="range" id="sl-sustain" min="0.0" max="24.0" step="0.2" value="14.5" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Bow Arch Depth (A)</span><span class="control-val" id="val-waveamp">0.36</span></div>
+        <input type="range" id="sl-waveamp" min="0.10" max="0.65" step="0.02" value="0.36" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Arch IB Reaction (k_IB)</span><span class="control-val" id="val-ibarch">9.5</span></div>
+        <input type="range" id="sl-ibarch" min="0.0" max="45.0" step="0.5" value="9.5" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Dormant Basis (No Prescribed Wedge!)</div>
+      <div class="control">
+        <div class="control-header"><span>Curled Basis Formation (0=Off)</span><span class="control-val" id="val-ignite">1.15</span></div>
+        <input type="range" id="sl-ignite" min="0.00" max="2.50" step="0.05" value="1.15" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Curl Condensation Threshold</span><span class="control-val" id="val-igthresh">0.75</span></div>
+        <input type="range" id="sl-igthresh" min="0.15" max="5.00" step="0.05" value="0.75" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Virtual Fade (Active Weak)</span><span class="control-val" id="val-fade">0.00</span></div>
+        <input type="range" id="sl-fade" min="0.00" max="0.60" step="0.02" value="0.00" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Spontaneous Spawn Rate</span><span class="control-val" id="val-spawn">0.00</span></div>
+        <input type="range" id="sl-spawn" min="0.00" max="0.45" step="0.01" value="0.00" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Strain Gradient Steer (-&nabla;P)</span><span class="control-val" id="val-psteer">1.1</span></div>
+        <input type="range" id="sl-psteer" min="0.0" max="5.0" step="0.1" value="1.1" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>IB Shear Torque Gain</span><span class="control-val" id="val-flowtorque">0.8</span></div>
+        <input type="range" id="sl-flowtorque" min="0.0" max="4.0" step="0.1" value="0.8" />
+      </div>
+      <div class="control">
+        <div class="control-header"><span>Asym Flank Flex</span><span class="control-val" id="val-twist">1.00</span></div>
+        <input type="range" id="sl-twist" min="0.0" max="2.5" step="0.05" value="1.00" />
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Display (Calibrated Soft-Knee Tone Map)</div>
+      <label class="toggle-row">
+        <span>Show Vacuum Strain (&delta;&rho;)</span>
+        <input type="checkbox" id="chk-foam" checked />
+      </label>
+      <label class="toggle-row">
+        <span>Show Elastic Lattice (s, Tree Bark)</span>
+        <input type="checkbox" id="chk-flow" checked />
+      </label>
+      <label class="toggle-row">
+        <span>Show Curl / Vorticity (Green/Purple)</span>
+        <input type="checkbox" id="chk-curl" checked />
+      </label>
+      <label class="toggle-row">
+        <span>Show World Grid (zoomed)</span>
+        <input type="checkbox" id="chk-grid" checked />
+      </label>
+      <div class="legend" style="margin-top:4px;">
+        <div class="legend-item"><span class="swatch" style="background:#38bdf8;"></span>Active arch (two-way no-slip IB with grid)</div>
+        <div class="legend-item"><span class="swatch" style="background:repeating-linear-gradient(90deg,#d946ef 0 4px,transparent 4px 7px);"></span>Dormant basis (v=0, flat ---→___, wakes only on hit)</div>
+        <div class="legend-item"><span class="swatch" style="background:#f59e0b;"></span>Grid compression (+&delta;&rho;, soft-knee calibrated)</div>
+        <div class="legend-item"><span class="swatch" style="background:#0ea5e9;"></span>Grid anti-cavitation tension (-&delta;&rho;, pulls arches back!)</div>
+        <div class="legend-item"><span class="swatch" style="background:#2ee58d;"></span>Elastic shear curl (&nabla;&times;v)</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const MAX_BIRDS = 256;
+  const NUM_MARKERS = 9;
+  const WORLD_W = 120.0;
+  const WORLD_H = 75.0;
+  const FMX = 600;
+  const FMY = 375;
+  const H_MED = 0.20;
+  const BOW_HALF_LEN = 0.82;
+
+  const canvas = document.getElementById('glcanvas');
+  const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
+  if (!gl) { alert('WebGL2 is required.'); return; }
+  const extFloat = gl.getExtension('EXT_color_buffer_float');
+  if (!extFloat) { alert('EXT_color_buffer_float is required.'); return; }
+  const extFloatBlend = gl.getExtension('EXT_float_blend');
+
+  // v7.8 ZERO-GLUE AUDIT:
+  //   - ZERO pairwise anti-cavitation spring
+  //   - ZERO pairwise viscous damper
+  //   - ZERO pairwise shear lock
+  //   - ZERO pairwise alignment / wedge torque
+  //   - ONLY true two-way semi-implicit Immersed Boundary (IB) traction with the 600x375 elastic lattice
+  //     + strictly inelastic (e = 0) hard-core contact when markers actually touch!
+  const params = {
+    bulkStiff: 950.0,
+    shearRigid: 480.0,
+    heaviness: 5.0,
+    ibGrip: 950.0,
+    bulkDamp: 1.35,
+    shearDamp: 0.90,
+    nestSpace: 0.40,
+    sizeScale: 1.00,
+    vPush: 2.0,
+    wallRebound: 175.0,
+    sustain: 14.5,
+    waveAmp: 0.36,
+    ibArchReact: 9.5,
+    curlIgnite: 1.15,
+    igniteThresh: 0.75,
+    isolatedFade: 0.00,
+    spawn: 0.00,
+    pressSteer: 1.1,
+    flowTorque: 0.8,
+    twistDrive: 1.00,
+    useSponge: true,
+    showFoam: true,
+    showFlow: true,
+    showCurl: true,
+    showGrid: true,
+    paused: false,
+    zoomed: true,
+    zoomLevel: 5.4,
+    zoomCenter: [WORLD_W * 0.5, WORLD_H * 0.5],
+    modeName: '1. Pure IB Dense Climb (Zero-Glue)',
+    activePreset: 'climb'
+  };
+
+  function computeTightnessJS() {
+    const Z = Math.sqrt((params.bulkStiff + params.shearRigid) * Math.max(params.heaviness, 0.2));
+    const zTight = Math.min(2.5, Math.max(0.15, Z / 35.0));
+    const shearFrac = Math.min(1.2, Math.max(0.05, params.shearRigid / Math.max(params.bulkStiff, 1.0)));
+    const x = zTight * (0.65 + 0.65 * shearFrac);
+    const t = Math.min(1.0, Math.max(0.0, (x - 0.22) / (0.94 - 0.22)));
+    const smoothT = t * t * (3.0 - 2.0 * t);
+    const stepDist = params.nestSpace * (2.90 + (1.00 - 2.90) * smoothT) * params.sizeScale;
+    return { Z, tightness: smoothT, stepDist };
+  }
+
+  function compileShader(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error(src);
+      throw new Error(gl.getShaderInfoLog(s));
+    }
+    return s;
+  }
+
+  function createProgram(vsSrc, fsSrc) {
+    const p = gl.createProgram();
+    gl.attachShader(p, compileShader(gl.VERTEX_SHADER, vsSrc));
+    gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fsSrc));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      throw new Error(gl.getProgramInfoLog(p));
+    }
+    return p;
+  }
+
+  function createFloatTex(w, h, useHalf = false) {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texImage2D(
+      gl.TEXTURE_2D, 0,
+      useHalf ? gl.RGBA16F : gl.RGBA32F,
+      w, h, 0, gl.RGBA,
+      useHalf ? gl.HALF_FLOAT : gl.FLOAT,
+      null
+    );
+    return tex;
+  }
+
+  function createFBO(textures) {
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    const bufs = [];
+    for (let i = 0; i < textures.length; i++) {
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, textures[i], 0);
+      bufs.push(gl.COLOR_ATTACHMENT0 + i);
+    }
+    gl.drawBuffers(bufs);
+    const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    if (status !== gl.FRAMEBUFFER_COMPLETE) throw new Error('FBO incomplete: ' + status);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return fbo;
+  }
+
+  const quadBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+  const QUAD_VS = `#version 300 es
+  in vec2 aPos;
+  out vec2 vUV;
+  void main() {
+    vUV = aPos * 0.5 + 0.5;
+    gl_Position = vec4(aPos, 0.0, 1.0);
+  }`;
+
+  const COMMON_GLSL = `
+  const int MAX_BIRDS = ${MAX_BIRDS};
+  const int NUM_MARKERS = ${NUM_MARKERS};
+  const vec2 WORLD = vec2(${WORLD_W.toFixed(1)}, ${WORLD_H.toFixed(1)});
+  const ivec2 FOAM = ivec2(${FMX}, ${FMY});
+  const float H_MED = ${H_MED.toFixed(2)};
+  const float BOW_L = ${BOW_HALF_LEN.toFixed(2)};
+  const float PI = 3.14159265359;
+  const float TAU = 6.28318530718;
+
+  ivec2 wrapFoam(ivec2 c) {
+    return ((c % FOAM) + FOAM) % FOAM;
+  }
+
+  vec2 wrapPos(vec2 p) {
+    return mod(mod(p, WORLD) + WORLD, WORLD);
+  }
+
+  vec2 wrapDelta(vec2 d) {
+    d.x -= WORLD.x * floor(d.x / WORLD.x + 0.5);
+    d.y -= WORLD.y * floor(d.y / WORLD.y + 0.5);
+    return d;
+  }
+
+  uint hashUint(uint x) {
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+  }
+
+  float rand01(uint seed) {
+    return float(hashUint(seed) >> 8) / 16777216.0;
+  }
+
+  float phiBow(float u) {
+    return cos(0.5 * PI * u) - 0.6388;
+  }
+  float dPhiBow_du(float u) {
+    return -0.5 * PI * sin(0.5 * PI * u);
+  }
+  float phiA(float u) {
+    return sin(PI * u);
+  }
+  float dPhiA_du(float u) {
+    return PI * cos(PI * u);
+  }
+
+  // Symmetric non-cavitating elastic equation of state (compression + anti-cavitation tension directly on grid!)
+  float elasticPressNorm(float d) {
+    float dc = clamp(d, -0.80, 0.80);
+    if (dc >= 0.0) {
+      return dc + 4.0 * dc * dc + 38.0 * dc * dc * dc;
+    }
+    return 1.35 * dc - 4.0 * dc * dc + 34.0 * dc * dc * dc;
+  }
+
+  float localHeaviness(float d, float rho0) {
+    return rho0 * clamp(1.0 + 1.8 * clamp(d, -0.80, 0.80), 0.45, 3.0);
+  }
+
+  float mediumTightness(float bulkK, float shearMu, float rho0) {
+    float Z = sqrt((bulkK + shearMu) * max(rho0, 0.2));
+    float zTight = clamp(Z / 35.0, 0.15, 2.5);
+    float shearFrac = clamp(shearMu / max(bulkK, 1.0), 0.05, 1.2);
+    return smoothstep(0.22, 0.94, zTight * (0.65 + 0.65 * shearFrac));
+  }
+
+  float steppingStoneDist(float nestSpace, float size, float tightness) {
+    return nestSpace * mix(2.90, 1.00, tightness) * size;
+  }
+
+  vec4 sampleMedTex(sampler2D tex, vec2 worldPos) {
+    vec2 probeTex = worldPos / H_MED - 0.5;
+    ivec2 b0 = ivec2(floor(probeTex));
+    vec2 f = fract(probeTex);
+    vec4 f00 = texelFetch(tex, wrapFoam(b0), 0);
+    vec4 f10 = texelFetch(tex, wrapFoam(b0 + ivec2(1, 0)), 0);
+    vec4 f01 = texelFetch(tex, wrapFoam(b0 + ivec2(0, 1)), 0);
+    vec4 f11 = texelFetch(tex, wrapFoam(b0 + ivec2(1, 1)), 0);
+    return mix(mix(f00, f10, f.x), mix(f01, f11, f.x), f.y);
+  }
+  `;
+
+  // --- PASS 0: IMMERSED BOUNDARY VELOCITY & OCCUPANCY SPLAT (NO OPEN-LOOP PRESSURE BLAST!) ---
+  // Channels written to ibTex (additive blend):
+  //   rg = sum(w_k * v_marker_k)  -> local no-slip target velocity of immersed arches
+  //   b  = sum(w_k)               -> local immersed boundary occupancy weight W(x)
+  //   a  = sum(w_k * |v_k|/V_p)   -> local shear/energy indicator
+  const P2G_VS = `#version 300 es
+  in vec2 aQuad;
+  uniform sampler2D uBirdA;
+  uniform sampler2D uBirdB;
+  uniform sampler2D uBirdC;
+  uniform float uSizeScale;
+
+  out vec2 vWorldPos;
+  out vec2 vCenter;
+  out vec4 vA;
+  out vec4 vB;
+  out vec4 vC;
+
+  ${COMMON_GLSL}
+
+  void main() {
+    int birdIdx = gl_InstanceID / 9;
+    int tileIdx = gl_InstanceID - birdIdx * 9;
+    int tx = (tileIdx % 3) - 1;
+    int ty = (tileIdx / 3) - 1;
+
+    vec4 bB = texelFetch(uBirdB, ivec2(birdIdx, 0), 0);
+    vec4 bC = texelFetch(uBirdC, ivec2(birdIdx, 0), 0);
+    if (bB.r <= 0.001 || bC.a <= -1.0) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+
+    vec4 bA = texelFetch(uBirdA, ivec2(birdIdx, 0), 0);
+    float size = bB.g * uSizeScale;
+    float L = BOW_L * size;
+    float halfBox = 1.65 * L + 0.35 * size;
+
+    vec2 bCenter = bA.rg + vec2(float(tx), float(ty)) * WORLD;
+    if (bCenter.x + halfBox < 0.0 || bCenter.x - halfBox > WORLD.x ||
+        bCenter.y + halfBox < 0.0 || bCenter.y - halfBox > WORLD.y) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+
+    vec2 wp = bCenter + aQuad * halfBox;
+    vWorldPos = wp;
+    vCenter = bCenter;
+    vA = bA;
+    vB = bB;
+    vC = bC;
+    gl_Position = vec4((wp / WORLD) * 2.0 - 1.0, 0.0, 1.0);
+  }`;
+
+  const P2G_FS = `#version 300 es
+  precision highp float;
+  in vec2 vWorldPos;
+  in vec2 vCenter;
+  in vec4 vA;
+  in vec4 vB;
+  in vec4 vC;
+
+  uniform float uWaveAmp;
+  uniform float uVPush;
+  uniform float uSizeScale;
+
+  out vec4 outIB;
+
+  ${COMMON_GLSL}
+
+  void main() {
+    float life = vB.r;
+    if (life <= 0.001 || vC.a <= -1.0) discard;
+
+    float size = vB.g * uSizeScale;
+    float vAxial = vA.a;
+    float qs = vB.b;
+    float vqs = vB.a;
+    float qa = vC.r;
+    float vqa = vC.g;
+    float omegaBody = vC.b;
+
+    vec2 dir = vec2(cos(vA.b), sin(vA.b));
+    vec2 perp = vec2(-dir.y, dir.x);
+    float L = BOW_L * size;
+    // Crisp Gaussian IB kernel (sigma = 0.13) grabs the exact lattice cells on the arch surface
+    // while leaving the interstitial cells between stacked arches free to stretch/compress naturally!
+    float sig = max(0.13 * size, 0.10);
+    float invTwoSig2 = 0.5 / (sig * sig);
+
+    float lifeMask = smoothstep(0.0, 0.25, life);
+    float vNorm = clamp(abs(vAxial) / max(uVPush, 0.4), 0.0, 1.8);
+
+    vec2 velWeightAcc = vec2(0.0);
+    float weightAcc = 0.0;
+    float energyAcc = 0.0;
+
+    for (int k = 0; k < NUM_MARKERS; k++) {
+      float u = (float(k) - 0.5 * float(NUM_MARKERS - 1)) * (2.0 / float(NUM_MARKERS));
+      float ps = phiBow(u);
+      float pa = phiA(u);
+      float yOff  = uWaveAmp * size * (qs * ps + qa * pa);
+      float dy_du = uWaveAmp * size * (qs * dPhiBow_du(u) + qa * dPhiA_du(u));
+      float yDot  = uWaveAmp * size * (vqs * ps + vqa * pa);
+
+      vec2 xk = vCenter + perp * (u * L) + dir * yOff;
+      vec2 d = vWorldPos - xk;
+      float r2 = dot(d, d);
+      if (r2 > 0.36 * size * size) continue;
+
+      float wk = exp(-r2 * invTwoSig2) * lifeMask / 1.45;
+      // Physical surface velocity of marker k:
+      // axial motion + rigid rotation + bow-flex velocity + gentle wedge parting along curved normal
+      vec2 nHat = normalize(dir - (dy_du / max(L, 0.2)) * perp);
+      float axLocal = vAxial - omegaBody * (u * L) + 0.55 * yDot;
+      vec2 vSurf = nHat * axLocal + perp * (u * abs(vAxial) * 0.22);
+
+      velWeightAcc += vSurf * wk;
+      weightAcc    += wk;
+      energyAcc    += vNorm * wk * 0.25;
+    }
+
+    outIB = vec4(velWeightAcc, weightAcc, energyAcc);
+  }`;
+
+  // --- PASS 1: SEMI-IMPLICIT TWO-WAY IMMERSED BOUNDARY ELASTIC SOLID PDE (600 x 375) ---
+  // On EVERY substep, lattice velocity implicitly relaxes toward the immersed arch's true surface velocity:
+  //   v_new = (v + a_elastic * dt + alpha_IB * dt * v_arch) / (1 + (alpha_IB + gamma) * dt)
+  // Unconditionally stable for ANY stiffness or IB grip — physically enforces no-slip anti-cavitation & shear!
+  const MEDIUM_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uMedA;
+  uniform sampler2D uMedB;
+  uniform sampler2D uIBTex;
+  uniform float uDt;
+  uniform float uBulkStiff;
+  uniform float uShearRigid;
+  uniform float uHeaviness;
+  uniform float uIBGrip;
+  uniform float uBulkDamp;
+  uniform float uShearDamp;
+  uniform float uUseSponge;
+
+  layout(location = 0) out vec4 outMedA;
+  layout(location = 1) out vec4 outMedB;
+
+  ${COMMON_GLSL}
+
+  vec2 faceStressX(vec2 sL, vec2 sR, vec2 sLU, vec2 sLD, vec2 sRU, vec2 sRD, float eFace) {
+    float dsx_dx = (sR.x - sL.x) / H_MED;
+    float dsy_dx = (sR.y - sL.y) / H_MED;
+    float dsy_dy = 0.25 * ((sLU.y - sLD.y) + (sRU.y - sRD.y)) / H_MED;
+    float dsx_dy = 0.25 * ((sLU.x - sLD.x) + (sRU.x - sRD.x)) / H_MED;
+    float dRho = -(dsx_dx + dsy_dy);
+    float P = uBulkStiff * elasticPressNorm(dRho) + 0.15 * eFace;
+    float sigma_xx = -P + uShearRigid * (dsx_dx - dsy_dy);
+    float sigma_yx = uShearRigid * (dsy_dx + dsx_dy);
+    return vec2(sigma_xx, sigma_yx);
+  }
+
+  vec2 faceStressY(vec2 sD, vec2 sU, vec2 sDR, vec2 sDL, vec2 sUR, vec2 sUL, float eFace) {
+    float dsy_dy = (sU.y - sD.y) / H_MED;
+    float dsx_dy = (sU.x - sD.x) / H_MED;
+    float dsx_dx = 0.25 * ((sDR.x - sDL.x) + (sUR.x - sUL.x)) / H_MED;
+    float dsy_dx = 0.25 * ((sDR.y - sDL.y) + (sUR.y - sUL.y)) / H_MED;
+    float dRho = -(dsx_dx + dsy_dy);
+    float P = uBulkStiff * elasticPressNorm(dRho) + 0.15 * eFace;
+    float sigma_yy = -P + uShearRigid * (dsy_dy - dsx_dx);
+    float sigma_xy = uShearRigid * (dsx_dy + dsy_dx);
+    return vec2(sigma_xy, sigma_yy);
+  }
+
+  void main() {
+    ivec2 fCell = ivec2(floor(gl_FragCoord.xy));
+    vec2 wPos = (vec2(fCell) + 0.5) * H_MED;
+
+    vec4 mAC  = texelFetch(uMedA, fCell, 0);
+    vec4 mAPX = texelFetch(uMedA, wrapFoam(fCell + ivec2( 1,  0)), 0);
+    vec4 mANX = texelFetch(uMedA, wrapFoam(fCell + ivec2(-1,  0)), 0);
+    vec4 mAPY = texelFetch(uMedA, wrapFoam(fCell + ivec2( 0,  1)), 0);
+    vec4 mANY = texelFetch(uMedA, wrapFoam(fCell + ivec2( 0, -1)), 0);
+    vec4 mAPP = texelFetch(uMedA, wrapFoam(fCell + ivec2( 1,  1)), 0);
+    vec4 mAPN = texelFetch(uMedA, wrapFoam(fCell + ivec2( 1, -1)), 0);
+    vec4 mANP = texelFetch(uMedA, wrapFoam(fCell + ivec2(-1,  1)), 0);
+    vec4 mANN = texelFetch(uMedA, wrapFoam(fCell + ivec2(-1, -1)), 0);
+
+    vec2 sC = mAC.rg, sPX = mAPX.rg, sNX = mANX.rg, sPY = mAPY.rg, sNY = mANY.rg;
+    vec2 sPP = mAPP.rg, sPN = mAPN.rg, sNP = mANP.rg, sNN = mANN.rg;
+    vec2 vC = mAC.ba, vPX = mAPX.ba, vNX = mANX.ba, vPY = mAPY.ba, vNY = mANY.ba;
+    vec2 vPP = mAPP.ba, vPN = mAPN.ba, vNP = mANP.ba, vNN = mANN.ba;
+
+    vec4 mBC  = texelFetch(uMedB, fCell, 0);
+    vec4 mBPX = texelFetch(uMedB, wrapFoam(fCell + ivec2( 1,  0)), 0);
+    vec4 mBNX = texelFetch(uMedB, wrapFoam(fCell + ivec2(-1,  0)), 0);
+    vec4 mBPY = texelFetch(uMedB, wrapFoam(fCell + ivec2( 0,  1)), 0);
+    vec4 mBNY = texelFetch(uMedB, wrapFoam(fCell + ivec2( 0, -1)), 0);
+    float eC = mBC.a, ePX = mBPX.a, eNX = mBNX.a, ePY = mBPY.a, eNY = mBNY.a;
+
+    vec2 stPX = faceStressX(sC,  sPX, sPY, sNY, sPP, sPN, 0.5 * (eC + ePX));
+    vec2 stNX = faceStressX(sNX, sC,  sNP, sNN, sPY, sNY, 0.5 * (eC + eNX));
+    vec2 stPY = faceStressY(sC,  sPY, sPX, sNX, sPP, sNP, 0.5 * (eC + ePY));
+    vec2 stNY = faceStressY(sNY, sC,  sPN, sNN, sPX, sNX, 0.5 * (eC + eNY));
+
+    vec2 fElastic = vec2(
+      (stPX.x - stNX.x) + (stPY.x - stNY.x),
+      (stPX.y - stNX.y) + (stPY.y - stNY.y)
+    ) / H_MED;
+
+    float deltaRhoC = -((sPX.x - sNX.x) + (sPY.y - sNY.y)) / (2.0 * H_MED);
+    float curlV     = ((vPX.y - vNX.y) - (vPY.x - vNY.x)) / (2.0 * H_MED);
+    float shearMag  = length(vec2(
+      (sPX.x - sNX.x) - (sPY.y - sNY.y),
+      (sPX.y - sNX.y) + (sPY.x - sNY.x)
+    )) / (2.0 * H_MED);
+
+    // Read immersed boundary target velocity & occupancy mask
+    vec4 ibIn = texelFetch(uIBTex, fCell, 0);
+    float ibW = ibIn.b;
+    vec2 vArchTarget = (ibW > 0.005) ? (ibIn.rg / ibW) : vec2(0.0);
+    float birdEnergy = ibIn.a;
+
+    float rhoEff = localHeaviness(deltaRhoC, uHeaviness);
+    float cLocal = sqrt(max(uBulkStiff + uShearRigid, 0.5) / max(rhoEff, 0.25));
+
+    float d2vx_dx2  = vPX.x - 2.0 * vC.x + vNX.x;
+    float d2vy_dy2  = vPY.y - 2.0 * vC.y + vNY.y;
+    float d2vy_dxdy = 0.25 * (vPP.y - vPN.y - vNP.y + vNN.y);
+    float d2vx_dxdy = 0.25 * (vPP.x - vPN.x - vNP.x + vNN.x);
+    vec2 gradDivV = vec2(d2vx_dx2 + d2vy_dxdy, d2vy_dy2 + d2vx_dxdy);
+    vec2 lapV     = (vPX + vNX + vPY + vNY) - 4.0 * vC;
+
+    float gammaEff = mix(uShearDamp, uBulkDamp, smoothstep(0.008, 0.10, abs(deltaRhoC)))
+                   * mix(1.0, 0.72, smoothstep(0.0, 0.20, -deltaRhoC));
+
+    // Smooth absorbing sponge layer around outer 8 units of box prevents periodic acoustic echo wraparound!
+    if (uUseSponge > 0.5) {
+      float edgeDist = min(min(wPos.x, WORLD.x - wPos.x), min(wPos.y, WORLD.y - wPos.y));
+      float sp = 1.0 - smoothstep(1.5, 9.5, edgeDist);
+      gammaEff += sp * sp * 18.0;
+    }
+
+    vec2 aElastic = (fElastic - 0.035 * uBulkStiff * sC) / rhoEff
+                  + gradDivV * (0.042 * cLocal / H_MED)
+                  + lapV * (0.011 * cLocal / H_MED);
+
+    // Semi-implicit no-slip IB coupling rate alphaIB = (uIBGrip / rhoEff) * W
+    float alphaIB = (uIBGrip / max(rhoEff, 0.25)) * smoothstep(0.02, 0.35, ibW) * clamp(ibW, 0.0, 2.2);
+
+    vec2 vNew = (vC + aElastic * uDt + (alphaIB * uDt) * vArchTarget) / (1.0 + (alphaIB + gammaEff) * uDt);
+    float vLen = length(vNew);
+    if (vLen > 16.0) vNew *= 16.0 / vLen;
+
+    vec2 sNew = sC + vNew * uDt;
+    float sLen = length(sNew);
+    if (sLen > 0.75) sNew *= 0.75 / sLen;
+
+    float eInst = clamp(0.10 * dot(vNew, vNew) + 0.18 * shearMag * shearMag + 0.25 * birdEnergy, 0.0, 2.0);
+    float lapE = (ePX + eNX + ePY + eNY) - 4.0 * eC;
+    float eNew = clamp(eC + uDt * (0.35 * lapE + 0.80 * (eInst - eC)), 0.0, 1.5);
+
+    outMedA = vec4(sNew, vNew);
+    outMedB = vec4(deltaRhoC, elasticPressNorm(deltaRhoC), curlV, eNew);
+  }`;
+
+  // --- PASS 2: PURE ZERO-GLUE ARCH UPDATE (GRID IB TRACTION + HARD-CORE INELASTIC e=0 HIT ONLY!) ---
+  // Audited strictly clean:
+  //   - NO pairwise anti-cavitation spring
+  //   - NO pairwise viscous squeeze-film damper
+  //   - NO pairwise lateral shear lock
+  //   - NO pairwise alignment or prescribed wedge torque
+  //   ALL neighbor cohesion, anti-cavitation, transverse shear resistance, and rhythm coupling MUST
+  //   travel 100% through the 600x375 elastic lattice PDE (except physical hard-core e=0 collisions)!
+  const BIRD_UPDATE_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uBirdA; // (pos.x, pos.y, angle, vAxial)
+  uniform sampler2D uBirdB; // (life, baseSize, qs, vqs)
+  uniform sampler2D uBirdC; // (qa [or dormantAge], vqa, omegaBody, stateFlag)
+  uniform sampler2D uMedA;
+  uniform sampler2D uMedB;
+  uniform float uDt;
+  uniform float uVPush;
+  uniform float uWallRebound;
+  uniform float uBulkStiff;
+  uniform float uShearRigid;
+  uniform float uHeaviness;
+  uniform float uSustain;
+  uniform float uNestSpace;
+  uniform float uSizeScale;
+  uniform float uWaveAmp;
+  uniform float uIBArchReact;
+  uniform float uCurlIgnite;
+  uniform float uIgniteThresh;
+  uniform float uIsolatedFade;
+  uniform float uPressSteer;
+  uniform float uFlowTorque;
+  uniform float uTwistDrive;
+  uniform float uSpawnRate;
+  uniform float uFrame;
+  uniform int uPaintSlot;
+  uniform vec2 uPaintPos;
+  uniform float uPaintAngle;
+
+  layout(location = 0) out vec4 outA;
+  layout(location = 1) out vec4 outB;
+  layout(location = 2) out vec4 outC;
+
+  ${COMMON_GLSL}
+
+  void main() {
+    int idx = int(floor(gl_FragCoord.x));
+
+    if (idx == uPaintSlot) {
+      outA = vec4(wrapPos(uPaintPos), mod(uPaintAngle + TAU, TAU), uVPush);
+      outB = vec4(1.0, 1.0, 0.70, 0.0);
+      outC = vec4(0.0);
+      return;
+    }
+
+    vec4 bA = texelFetch(uBirdA, ivec2(idx, 0), 0);
+    vec4 bB = texelFetch(uBirdB, ivec2(idx, 0), 0);
+    vec4 bC = texelFetch(uBirdC, ivec2(idx, 0), 0);
+
+    float tightness = mediumTightness(uBulkStiff, uShearRigid, uHeaviness);
+
+    float life = bB.r;
+    if (life <= 0.001) {
+      // --- STEP 1 & 2: DORMANT BASIS CONDENSATION FROM REAL CURL (ZERO PRESCRIBED WEDGE!) ---
+      int igniteTicket = int(mod(floor(uFrame) * 17.0, float(MAX_BIRDS)));
+      if (uCurlIgnite > 0.01 && idx == igniteTicket) {
+        int startJ = int(mod(floor(uFrame) * 31.0, float(MAX_BIRDS)));
+        for (int stepJ = 0; stepJ < MAX_BIRDS; stepJ++) {
+          int j = (startJ + stepJ) % MAX_BIRDS;
+          vec4 jB = texelFetch(uBirdB, ivec2(j, 0), 0);
+          vec4 jC = texelFetch(uBirdC, ivec2(j, 0), 0);
+          if (jB.r <= 0.40 || jC.a <= -1.0 || jC.a < -0.30) continue;
+          vec4 jA = texelFetch(uBirdA, ivec2(j, 0), 0);
+          if (jA.a < 0.08 * uVPush || jA.a > 0.78 * uVPush || jB.b < 0.14) continue;
+
+          float jBaseSz = jB.g;
+          float jSz = jBaseSz * uSizeScale;
+          float jL  = BOW_L * jSz;
+          vec2 jDir  = vec2(cos(jA.b), sin(jA.b));
+          vec2 jPerp = vec2(-jDir.y, jDir.x);
+
+          float stepD = steppingStoneDist(uNestSpace, jSz, tightness);
+
+          bool hasRearNeighbor = false;
+          float rearLookR = max(2.65 * stepD, 2.20 * jSz);
+          for (int k = 0; k < MAX_BIRDS; k++) {
+            if (k == j) continue;
+            vec4 kB = texelFetch(uBirdB, ivec2(k, 0), 0);
+            if (kB.r <= 0.05) continue;
+            vec4 kA = texelFetch(uBirdA, ivec2(k, 0), 0);
+            vec2 dKJ = wrapDelta(kA.rg - jA.rg);
+            float behind = dot(dKJ, -jDir);
+            float lat    = abs(dot(dKJ, jPerp));
+            if (behind > 0.10 * jSz && behind < rearLookR && lat < 1.15 * jL) {
+              hasRearNeighbor = true;
+              break;
+            }
+          }
+          if (hasRearNeighbor) continue;
+
+          vec2 pCurlL = jA.rg + jPerp * (0.85 * jL) - jDir * (0.26 * jSz);
+          vec2 pCurlR = jA.rg - jPerp * (0.85 * jL) - jDir * (0.26 * jSz);
+          float rawL = sampleMedTex(uMedB, pCurlL).b;
+          float rawR = sampleMedTex(uMedB, pCurlR).b;
+          float curlPair = abs(rawL) + abs(rawR);
+          float counterFactor = (rawL * rawR < 0.0) ? 1.0 : 0.35;
+
+          float circulation   = curlPair * counterFactor * (jSz * jSz);
+          float densityFactor = 0.25 + 0.24 * uHeaviness;
+          float curlDrive     = circulation * densityFactor * uCurlIgnite;
+
+          if (curlDrive > uIgniteThresh) {
+            // Pure field asymmetry ONLY (zero hardcoded chirality or wedge bias!)
+            float asymRaw = (abs(rawL) - abs(rawR)) / max(curlPair, 0.20);
+            float dTheta = clamp(asymRaw * 0.10, -0.14, 0.14);
+            vec2 candPos = wrapPos(jA.rg - jDir * stepD + jPerp * (0.5 * stepD * dTheta));
+            float candAng = mod(jA.b - dTheta + TAU, TAU);
+
+            bool clear = true;
+            float minClearOther = max(0.74 * stepD, 0.30 * jSz);
+            for (int k = 0; k < MAX_BIRDS; k++) {
+              vec4 kB = texelFetch(uBirdB, ivec2(k, 0), 0);
+              if (kB.r <= 0.05) continue;
+              vec4 kA = texelFetch(uBirdA, ivec2(k, 0), 0);
+              float d = length(wrapDelta(kA.rg - candPos));
+              float req = (k == j) ? max(0.75 * stepD, 0.28 * jSz) : minClearOther;
+              if (d < req) {
+                clear = false;
+                break;
+              }
+            }
+
+            if (clear) {
+              outA = vec4(candPos, candAng, 0.0);
+              outB = vec4(0.32, jBaseSz, 0.0, 0.0);
+              outC = vec4(0.0, 0.0, 0.0, -1.15);
+              return;
+            }
+          }
+        }
+      }
+
+      if (uSpawnRate > 0.0) {
+        uint seed = uint(uFrame) * 1664525u + uint(idx) * 374761393u + 1013904223u;
+        float r = rand01(seed);
+        if (r < uSpawnRate * 2.5 * uDt) {
+          vec2 candPos = vec2(rand01(seed + 1u) * WORLD.x, rand01(seed + 2u) * WORLD.y);
+          bool clear = true;
+          for (int j = 0; j < MAX_BIRDS; j++) {
+            vec4 jB = texelFetch(uBirdB, ivec2(j, 0), 0);
+            if (jB.r <= 0.001) continue;
+            vec4 jA = texelFetch(uBirdA, ivec2(j, 0), 0);
+            if (length(wrapDelta(jA.rg - candPos)) < 1.65 * uSizeScale) {
+              clear = false;
+              break;
+            }
+          }
+          if (clear) {
+            float ang = rand01(seed + 3u) * TAU;
+            float sgn = rand01(seed + 4u) > 0.5 ? 1.0 : -1.0;
+            float sz  = mix(0.55, 1.20, rand01(seed + 5u));
+            outA = vec4(candPos, ang, sgn * uVPush * mix(0.50, 1.10, rand01(seed + 6u)));
+            outB = vec4(0.85, sz, sgn * 0.65, 0.0);
+            outC = vec4(0.0);
+            return;
+          }
+        }
+      }
+      outA = vec4(0.0);
+      outB = vec4(0.0);
+      outC = vec4(0.0);
+      return;
+    }
+
+    vec2 pos = bA.rg;
+    float angle = bA.b;
+    float vAxial = bA.a;
+    float baseSize = bB.g;
+    float size = baseSize * uSizeScale;
+    float qs = bB.b;
+    float vqs = bB.a;
+    float qa = bC.r;
+    float vqa = bC.g;
+    float omegaBody = bC.b;
+    float stateFlag = bC.a;
+
+    vec2 dir = vec2(cos(angle), sin(angle));
+    vec2 perp = vec2(-dir.y, dir.x);
+    float L = BOW_L * size;
+
+    // =========================================================================
+    // DORMANT "NEW BASIS" PATH (stateFlag <= -1.0):
+    //   - Stationary & flat (v = 0, qs = 0) until physically struck!
+    //   - Strictly inelastic (e = 0) wake-up: acquires exact shared v_cm = 0.50 * v_striker!
+    // =========================================================================
+    if (stateFlag <= -1.0) {
+      float solidity   = clamp(-stateFlag - 1.0, 0.0, 1.0);
+      float dormantAge = qa + uDt;
+
+      float cL = abs(sampleMedTex(uMedB, pos + perp * (0.85 * L)).b);
+      float cR = abs(sampleMedTex(uMedB, pos - perp * (0.85 * L)).b);
+      float localCurl = cL + cR;
+
+      if (dormantAge < 0.60 && localCurl > 0.10) {
+        solidity = min(1.0, solidity + uDt * (1.6 + 2.4 * tightness) * clamp(localCurl, 0.35, 2.2));
+        life = min(0.95, life + uDt * 2.4);
+      }
+
+      float bestHit = 99.0;
+      float hitImpactV = 0.0;
+      float hitOmega = 0.0;
+      float hitApproach = 0.0;
+
+      for (int j = 0; j < MAX_BIRDS; j++) {
+        if (j == idx) continue;
+        vec4 jB = texelFetch(uBirdB, ivec2(j, 0), 0);
+        vec4 jC = texelFetch(uBirdC, ivec2(j, 0), 0);
+        if (jB.r <= 0.25 || jC.a <= -1.0) continue;
+        vec4 jA = texelFetch(uBirdA, ivec2(j, 0), 0);
+        vec2 dCenter = wrapDelta(pos - jA.rg);
+        float jSize = jB.g * uSizeScale;
+        float avgSize = 0.5 * (size + jSize);
+        float maxR = 2.0 * avgSize;
+        if (dot(dCenter, dCenter) > maxR * maxR) continue;
+
+        vec2 jDir  = vec2(cos(jA.b), sin(jA.b));
+        vec2 jPerp = vec2(-jDir.y, jDir.x);
+        float jL   = BOW_L * jSize;
+
+        float pairMin = 99.0;
+        vec2 pairN = vec2(0.0);
+        for (int mk = 0; mk < NUM_MARKERS; mk++) {
+          float um = (float(mk) - 0.5 * float(NUM_MARKERS - 1)) * (2.0 / float(NUM_MARKERS));
+          vec2 rm = perp * (um * L);
+          for (int nk = 0; nk < NUM_MARKERS; nk++) {
+            float un = (float(nk) - 0.5 * float(NUM_MARKERS - 1)) * (2.0 / float(NUM_MARKERS));
+            vec2 rn = jPerp * (un * jL) + jDir * (uWaveAmp * jSize * (jB.b * phiBow(un) + jC.r * phiA(un)));
+            vec2 diff = wrapDelta(dCenter + rm - rn);
+            float d = length(diff);
+            if (d > 1e-4 && d < pairMin) {
+              pairMin = d;
+              pairN = diff / d;
+            }
+          }
+        }
+
+        float rImpact = max(0.32 * avgSize, 0.22);
+        float approach = dot(jDir * jA.a, pairN);
+        if (pairMin < rImpact && approach > 0.16 && pairMin < bestHit) {
+          bestHit = pairMin;
+          hitApproach = approach;
+          hitImpactV = dot(jDir * jA.a, dir);
+          hitOmega = jC.b;
+        }
+      }
+
+      if (bestHit < 90.0 && solidity > 0.35 && hitApproach > 0.16) {
+        float vCM = clamp(0.50 * hitImpactV, -uVPush * 1.3, uVPush * 1.3);
+        outA = vec4(pos, angle, vCM);
+        outB = vec4(0.98, baseSize, 0.0, vCM * 4.2);
+        outC = vec4(0.0, 0.0, hitOmega * 0.5, -0.95);
+        return;
+      }
+
+      if (dormantAge > 0.90) {
+        life = max(0.0, life - uDt * 2.6);
+        solidity = max(0.0, solidity - uDt * 2.2);
+      }
+
+      if (life <= 0.001) {
+        outA = vec4(0.0);
+        outB = vec4(0.0);
+        outC = vec4(0.0);
+        return;
+      }
+
+      outA = vec4(pos, angle, 0.0);
+      outB = vec4(life, baseSize, 0.0, 0.0);
+      outC = vec4(dormantAge, 0.0, 0.0, -1.0 - solidity);
+      return;
+    }
+
+    // =========================================================================
+    // ACTIVE ARCH-WAVE PATH: 100% GRID-MEDIATED TWO-WAY IB REACTION (ZERO GLUE!)
+    // =========================================================================
+    float pFrontAcc    = 0.0;
+    float pBackAcc     = 0.0;
+    float dFrontAcc    = 0.0;
+    float dBackAcc     = 0.0;
+    float sAxAcc       = 0.0;
+    float vMedAxAcc    = 0.0;
+    float vMedLatAcc   = 0.0;
+    float tauPress     = 0.0;
+    float tauIBAcc     = 0.0;
+    float fAntiAcc     = 0.0;
+    float normA        = 0.0;
+    float absCurlSum   = 0.0;
+    float minAheadDRho = 1.0;
+
+    float moveSign = (vAxial >= 0.0) ? 1.0 : -1.0;
+
+    for (int k = 0; k < NUM_MARKERS; k++) {
+      float u = (float(k) - 0.5 * float(NUM_MARKERS - 1)) * (2.0 / float(NUM_MARKERS));
+      float ps = phiBow(u);
+      float pa = phiA(u);
+      float yOff = uWaveAmp * size * (qs * ps + qa * pa);
+
+      vec2 xk      = pos + perp * (u * L) + dir * yOff;
+      // Direct interstitial grid probes right across the arch faces (+/-0.16 & +/-0.30)
+      vec2 xFront1 = xk + dir * (0.16 * size);
+      vec2 xFront2 = xk + dir * (0.30 * size);
+      vec2 xBack1  = xk - dir * (0.16 * size);
+      vec2 xBack2  = xk - dir * (0.30 * size);
+
+      vec4 mHereA = sampleMedTex(uMedA, xk);
+      vec4 mHereB = sampleMedTex(uMedB, xk);
+      vec4 mF1A   = sampleMedTex(uMedA, xFront1);
+      vec4 mF1B   = sampleMedTex(uMedB, xFront1);
+      vec4 mF2B   = sampleMedTex(uMedB, xFront2);
+      vec4 mB1A   = sampleMedTex(uMedA, xBack1);
+      vec4 mB1B   = sampleMedTex(uMedB, xBack1);
+      vec4 mB2B   = sampleMedTex(uMedB, xBack2);
+
+      float wArch = 0.55 + 0.65 * cos(0.5 * PI * u);
+      float pFk = 0.72 * mF1B.g + 0.28 * mF2B.g;
+      float pBk = 0.72 * mB1B.g + 0.28 * mB2B.g;
+
+      pFrontAcc += wArch * pFk;
+      pBackAcc  += wArch * pBk;
+      dFrontAcc += wArch * (0.68 * mF1B.r + 0.32 * mF2B.r);
+      dBackAcc  += wArch * (0.68 * mB1B.r + 0.32 * mB2B.r);
+      sAxAcc    += wArch * dot(mHereA.rg, dir);
+
+      // True local 2D lattice velocity across the arch & its immediate thin boundary layer
+      vec2 vMedLocal = 0.50 * mHereA.ba + 0.25 * mF1A.ba + 0.25 * mB1A.ba;
+      vMedAxAcc  += wArch * dot(vMedLocal, dir);
+      vMedLatAcc += wArch * dot(mHereA.ba, perp);
+
+      // Direct physical pressure-jump & IB shear torque from the lattice (lever arm = u * L)
+      float pDiffK = pFk - pBk;
+      tauPress += u * pDiffK;
+      float vSurfAxK = vAxial - omegaBody * (u * L);
+      tauIBAcc += -u * (dot(vMedLocal, dir) - vSurfAxK);
+
+      float pLead = (moveSign > 0.0) ? pFk : pBk;
+      float dLead = (moveSign > 0.0) ? mF2B.r : mB2B.r;
+      float asymForce = -moveSign * pLead + 0.25 * dot(mHereA.ba, dir);
+      fAntiAcc += asymForce * pa;
+      normA    += pa * pa;
+
+      absCurlSum += abs(mHereB.b) / float(NUM_MARKERS);
+      minAheadDRho = min(minAheadDRho, dLead);
+    }
+
+    float wSum = 8.40;
+    float pFront  = pFrontAcc  / wSum;
+    float pBack   = pBackAcc   / wSum;
+    float sAx     = sAxAcc     / wSum;
+    float vMedAx  = vMedAxAcc  / wSum;
+    float vMedLat = vMedLatAcc / wSum;
+
+    // 1) Pure grid elastic pressure rebound + anti-cavitation tension (from real grid deltaRho!)
+    float kPressScale = clamp(pow(uBulkStiff / 950.0, 0.45), 0.38, 1.85);
+    float aPress = -(uWallRebound * kPressScale) * (pFront - pBack)
+                 - (0.38 * uWallRebound * kPressScale) * sAx;
+
+    // 2) Modest radiation-loss sustain so a single arch maintains clean steady oscillation
+    float vRat = vAxial / max(uVPush, 0.35);
+    float sustainEff = uSustain * clamp(size, 0.45, 1.25);
+    float aSustain = sustainEff * (1.0 - vRat * vRat) * vAxial;
+
+    // 3) Semi-implicit two-way Immersed Boundary velocity reaction (exact counterpart of MEDIUM_FS!)
+    float kIB = uIBArchReact * clamp(uBulkStiff / 950.0, 0.25, 1.8);
+    vAxial = (vAxial + (aPress + aSustain) * uDt + (kIB * uDt) * vMedAx) / (1.0 + kIB * uDt);
+    vAxial = clamp(vAxial, -uVPush * 1.65, uVPush * 1.65);
+
+    // 4) Pure grid pressure-gradient & IB shear torque (ZERO pairwise alignment glue!)
+    float tauGrid = clamp(tauPress * 0.45, -2.0, 2.0) * uPressSteer
+                  + clamp(tauIBAcc * 0.55, -2.5, 2.5) * uFlowTorque;
+    omegaBody = (omegaBody + tauGrid * uDt) / (1.0 + (2.5 + 0.22 * kIB) * uDt);
+
+    // =========================================================================
+    // HARD-CORE INELASTIC (e = 0) CONTACT ONLY!
+    //   ZERO force of any kind when markers are not physically touching (dist >= rCore)!
+    // =========================================================================
+    vec2 posResolve = vec2(0.0);
+    float tauContact = 0.0;
+    float contactDeltaV = 0.0;
+
+    for (int j = 0; j < MAX_BIRDS; j++) {
+      if (j == idx) continue;
+      vec4 jB = texelFetch(uBirdB, ivec2(j, 0), 0);
+      if (jB.r <= 0.05) continue;
+      vec4 jC = texelFetch(uBirdC, ivec2(j, 0), 0);
+      bool jDormant = (jC.a <= -1.0);
+      float jSolidity = jDormant ? clamp(-jC.a - 1.0, 0.0, 1.0) : 1.0;
+      if (jDormant && jSolidity <= 0.35) continue;
+
+      vec4 jA = texelFetch(uBirdA, ivec2(j, 0), 0);
+      vec2 dCenter = wrapDelta(pos - jA.rg);
+      float jSize = jB.g * uSizeScale;
+      float avgSize = 0.5 * (size + jSize);
+      float maxR = 2.25 * avgSize;
+      if (dot(dCenter, dCenter) > maxR * maxR) continue;
+
+      vec2 jDir  = vec2(cos(jA.b), sin(jA.b));
+      vec2 jPerp = vec2(-jDir.y, jDir.x);
+      float jL   = BOW_L * jSize;
+
+      float rCore = jDormant ? max(0.32 * avgSize, 0.22) : max(0.24 * avgSize, 0.17);
+
+      float bestHit = 99.0;
+      vec2 bestN = vec2(0.0);
+      for (int mk = 0; mk < NUM_MARKERS; mk++) {
+        float um = (float(mk) - 0.5 * float(NUM_MARKERS - 1)) * (2.0 / float(NUM_MARKERS));
+        vec2 rm = perp * (um * L) + dir * (uWaveAmp * size * (qs * phiBow(um) + qa * phiA(um)));
+        for (int nk = 0; nk < NUM_MARKERS; nk++) {
+          float un = (float(nk) - 0.5 * float(NUM_MARKERS - 1)) * (2.0 / float(NUM_MARKERS));
+          vec2 rn = jDormant
+            ? (jPerp * (un * jL))
+            : (jPerp * (un * jL) + jDir * (uWaveAmp * jSize * (jB.b * phiBow(un) + jC.r * phiA(un))));
+          vec2 diff = wrapDelta(dCenter + rm - rn);
+          float d2 = dot(diff, diff);
+          if (d2 > 1e-8 && d2 < rCore * rCore) {
+            float dist = sqrt(d2);
+            vec2 n = diff / dist;
+            float pen = rCore - dist;
+            if (!jDormant) {
+              vec2 pushK = n * (pen * 22.0);
+              posResolve += pushK;
+              tauContact += (rm.x * pushK.y - rm.y * pushK.x) * 0.16;
+            }
+            if (dist < bestHit) {
+              bestHit = dist;
+              bestN = n;
+            }
+          }
+        }
+      }
+
+      if (bestHit < 90.0) {
+        vec2 jVel = jDormant ? vec2(0.0) : (jDir * jA.a);
+        vec2 vRel = dir * vAxial - jVel;
+        float vnRel = dot(vRel, bestN);
+        if (vnRel < 0.0) {
+          contactDeltaV += -0.50 * vnRel * dot(dir, bestN);
+        }
+      }
+    }
+
+    vAxial = clamp(vAxial + clamp(contactDeltaV, -uVPush * 1.4, uVPush * 1.4), -uVPush * 1.65, uVPush * 1.65);
+
+    float prLen = length(posResolve);
+    if (prLen > 5.0) posResolve *= 5.0 / prLen;
+    omegaBody = clamp(omegaBody + tauContact * uDt, -2.6, 2.6);
+    angle = mod(angle + omegaBody * uDt + TAU, TAU);
+    dir = vec2(cos(angle), sin(angle));
+    perp = vec2(-dir.y, dir.x);
+
+    // Pure 2D grid-advected lateral motion (transverse shear rigidity mu pulls sideways slip through the grid!)
+    vec2 vel = dir * vAxial + perp * clamp(vMedLat * 0.90, -uVPush, uVPush) + posResolve;
+    vec2 stepMove = vel * uDt;
+    float moveLen = length(stepMove);
+    if (moveLen > 0.16) stepMove *= 0.16 / moveLen;
+    pos = wrapPos(pos + stepMove);
+
+    // Bow flex responds naturally to axial velocity & pressure jump
+    float targetQs = clamp((vAxial / max(uVPush, 0.4)) * 1.05 + 0.10 * clamp(pFront - pBack, -1.5, 1.5), -1.18, 1.18);
+    float kBend = 140.0;
+    float cBend = 1.25 * sqrt(kBend);
+    float aqs = kBend * (targetQs - qs) - cBend * vqs;
+    vqs = clamp(vqs + aqs * uDt, -24.0, 24.0);
+    qs  = clamp(qs + vqs * uDt, -1.25, 1.25);
+
+    float speedFrac = smoothstep(0.15, 0.85, abs(vAxial) / max(uVPush, 0.4));
+    float fAnti = clamp(fAntiAcc / max(normA, 0.1), -1.5, 1.5);
+    float aqa = -(1.8 * kBend) * qa - (1.5 * cBend) * vqa + (uTwistDrive * 18.0) * fAnti * speedFrac;
+    vqa = clamp(vqa + aqa * uDt, -12.0, 12.0);
+    qa  = clamp(qa + vqa * uDt, -0.70, 0.70);
+
+    float inBlue = smoothstep(-0.006, -0.06, minAheadDRho);
+    float visOut;
+    if (stateFlag < -0.02) {
+      visOut = min(stateFlag + uDt * 1.05, 0.0);
+    } else {
+      visOut = mix(max(stateFlag, 0.0), inBlue, clamp(4.0 * uDt, 0.0, 1.0));
+    }
+
+    if (uIsolatedFade > 0.001) {
+      float circPower = absCurlSum * (size * size);
+      float wavePower = smoothstep(0.25, 0.90, abs(vAxial) / max(uVPush, 0.4)) * smoothstep(0.55, 1.85, circPower + inBlue * 1.1);
+      life = clamp(life + uDt * uIsolatedFade * (1.70 * wavePower - 1.0), 0.0, 1.0);
+    }
+
+    outA = vec4(pos, angle, vAxial);
+    outB = vec4(life, baseSize, qs, vqs);
+    outC = vec4(qa, vqa, omegaBody, visOut);
+  }`;
+
+  // --- PASS 3a: Calibrated Soft-Knee Strain & Curl Renderer (No Neon Clipping!) ---
+  const DISPLAY_MED_FS = `#version 300 es
+  precision highp float;
+  uniform sampler2D uMedA;
+  uniform sampler2D uMedB;
+  uniform vec2 uRes;
+  uniform float uZoom;
+  uniform vec2 uZoomCenter;
+  uniform float uShowFoam;
+  uniform float uShowFlow;
+  uniform float uShowCurl;
+  uniform float uShowGrid;
+
+  in vec2 vUV;
+  out vec4 fragColor;
+
+  ${COMMON_GLSL}
+
+  void main() {
+    float aspect = uRes.x / max(uRes.y, 1.0);
+    float gridAspect = WORLD.x / WORLD.y;
+
+    vec2 viewSize = WORLD / uZoom;
+    if (aspect > gridAspect) viewSize.x = viewSize.y * aspect;
+    else viewSize.y = viewSize.x / aspect;
+
+    vec2 worldPos = uZoomCenter + (vUV - 0.5) * viewSize;
+    float pxSize = viewSize.y / max(uRes.y, 1.0);
+
+    vec3 col = vec3(0.040, 0.050, 0.066);
+
+    if (worldPos.x < 0.0 || worldPos.x > WORLD.x || worldPos.y < 0.0 || worldPos.y > WORLD.y) {
+      fragColor = vec4(0.02, 0.025, 0.035, 1.0);
+      return;
+    }
+
+    vec4 mA = sampleMedTex(uMedA, worldPos);
+    vec4 mB = sampleMedTex(uMedB, worldPos);
+    float d = mB.r;
+
+    // Soft-knee calibrated tone mapping (x / (x + knee)):
+    // Keeps single arches clear while preserving spatial hierarchy & contrast even for 20-arch trains!
+    if (uShowFoam > 0.5) {
+      float ad = abs(d);
+      if (ad > 0.003) {
+        float t = ad / (ad + 0.085);
+        if (d < 0.0) {
+          vec3 dipCol = mix(vec3(0.04, 0.28, 0.54), vec3(0.06, 0.70, 0.96), smoothstep(0.0, 0.55, t));
+          dipCol = mix(dipCol, vec3(0.16, 0.44, 1.00), smoothstep(0.55, 1.0, t));
+          col = mix(col, dipCol, clamp(t * 0.88, 0.0, 0.90));
+        } else {
+          vec3 peakCol = mix(vec3(0.56, 0.22, 0.04), vec3(0.98, 0.52, 0.10), smoothstep(0.0, 0.55, t));
+          peakCol = mix(peakCol, vec3(1.00, 0.86, 0.30), smoothstep(0.55, 1.0, t));
+          col = mix(col, peakCol, clamp(t * 0.92, 0.0, 0.92));
+        }
+      }
+    }
+
+    if (uShowCurl > 0.5) {
+      float curlV = mB.b;
+      float ac = abs(curlV);
+      if (ac > 0.12) {
+        float cT = ac / (ac + 4.8);
+        vec3 cCol = curlV > 0.0 ? vec3(0.20, 0.92, 0.56) : vec3(0.86, 0.30, 0.90);
+        col = mix(col, cCol, clamp(cT * 0.56, 0.0, 0.60));
+      }
+    }
+
+    if (uShowFlow > 0.5) {
+      float latFreq = 3.8;
+      vec2 matPos = (worldPos - mA.rg * 4.5) * latFreq;
+      vec2 mf = fract(matPos);
+      vec2 me = min(mf, 1.0 - mf);
+      float mDist = min(me.x, me.y);
+      float lineW = clamp(pxSize * latFreq * 1.55, 0.035, 0.22);
+      float strainBoost = smoothstep(0.004, 0.09, abs(d) + length(mA.rg) * 0.65);
+      float baseVis = mix(0.22, 0.46, smoothstep(1.2, 3.5, uZoom));
+      float latAlpha = (1.0 - smoothstep(0.0, lineW, mDist)) * mix(baseVis, 0.65, strainBoost);
+      vec3 latTint = mix(vec3(0.36, 0.72, 0.84), vec3(1.00, 0.76, 0.36), clamp(d * 5.2 + 0.45, 0.0, 1.0));
+      col = mix(col, latTint, latAlpha);
+    }
+
+    if (uShowGrid > 0.5 && uZoom > 1.8) {
+      vec2 f = fract(worldPos * 0.5);
+      vec2 edge = min(f, 1.0 - f);
+      float gDist = min(edge.x, edge.y);
+      float gridAlpha = (1.0 - smoothstep(0.0, pxSize * 0.8, gDist)) * smoothstep(1.8, 3.0, uZoom) * 0.14;
+      col = mix(col, vec3(0.32, 0.39, 0.48), gridAlpha);
+    }
+
+    fragColor = vec4(col, 1.0);
+  }`;
+
+  // --- PASS 3b: Crisp Arch + Dashed-to-Solid Dormant Basis Renderer ---
+  const DISPLAY_BIRDS_VS = `#version 300 es
+  in vec2 aQuad;
+  uniform sampler2D uBirdA;
+  uniform sampler2D uBirdB;
+  uniform sampler2D uBirdC;
+  uniform vec2 uRes;
+  uniform float uZoom;
+  uniform vec2 uZoomCenter;
+  uniform float uSizeScale;
+
+  out vec2 vWorldPos;
+  out vec2 vCenter;
+  out vec4 vA;
+  out vec4 vB;
+  out vec4 vC;
+
+  ${COMMON_GLSL}
+
+  void main() {
+    int birdIdx = gl_InstanceID / 9;
+    int tileIdx = gl_InstanceID - birdIdx * 9;
+    int tx = (tileIdx % 3) - 1;
+    int ty = (tileIdx / 3) - 1;
+
+    vec4 bB = texelFetch(uBirdB, ivec2(birdIdx, 0), 0);
+    if (bB.r <= 0.001) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+
+    vec4 bA = texelFetch(uBirdA, ivec2(birdIdx, 0), 0);
+    vec4 bC = texelFetch(uBirdC, ivec2(birdIdx, 0), 0);
+
+    float aspect = uRes.x / max(uRes.y, 1.0);
+    float gridAspect = WORLD.x / WORLD.y;
+    vec2 viewSize = WORLD / uZoom;
+    if (aspect > gridAspect) viewSize.x = viewSize.y * aspect;
+    else viewSize.y = viewSize.x / aspect;
+
+    float size = bB.g * uSizeScale;
+    float L = BOW_L * size;
+    float halfBox = 1.65 * L + 0.35 * size;
+    vec2 bCenter = bA.rg + vec2(float(tx), float(ty)) * WORLD;
+    vec2 relView = bCenter - uZoomCenter;
+    if (abs(relView.x) > viewSize.x * 0.5 + halfBox ||
+        abs(relView.y) > viewSize.y * 0.5 + halfBox) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+
+    vec2 wp = bCenter + aQuad * halfBox;
+    vWorldPos = wp;
+    vCenter = bCenter;
+    vA = bA;
+    vB = bB;
+    vC = bC;
+    vec2 uvPos = (wp - uZoomCenter) / viewSize + 0.5;
+    gl_Position = vec4(uvPos * 2.0 - 1.0, 0.0, 1.0);
+  }`;
+
+  const DISPLAY_BIRDS_FS = `#version 300 es
+  precision highp float;
+  in vec2 vWorldPos;
+  in vec2 vCenter;
+  in vec4 vA;
+  in vec4 vB;
+  in vec4 vC;
+
+  uniform vec2 uRes;
+  uniform float uZoom;
+  uniform float uSizeScale;
+  uniform float uWaveAmp;
+  uniform float uVPush;
+
+  out vec4 fragColor;
+
+  ${COMMON_GLSL}
+
+  float sdSeg(vec2 p, vec2 a, vec2 b) {
+    vec2 pa = p - a, ba = b - a;
+    float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
+    return length(pa - ba * h);
+  }
+
+  void main() {
+    float life = vB.r;
+    if (life <= 0.001) discard;
+    if (vWorldPos.x < 0.0 || vWorldPos.x > WORLD.x || vWorldPos.y < 0.0 || vWorldPos.y > WORLD.y) discard;
+
+    float aspect = uRes.x / max(uRes.y, 1.0);
+    float gridAspect = WORLD.x / WORLD.y;
+    vec2 viewSize = WORLD / uZoom;
+    if (aspect > gridAspect) viewSize.x = viewSize.y * aspect;
+    else viewSize.y = viewSize.x / aspect;
+    float pxSize = viewSize.y / max(uRes.y, 1.0);
+
+    float size = vB.g * uSizeScale;
+    float L = BOW_L * size;
+    float vAxial = vA.a;
+    float stateFlag = vC.a;
+    bool isDormant = (stateFlag <= -1.0);
+    float qs = isDormant ? 0.0 : vB.b;
+    float qa = isDormant ? 0.0 : vC.r;
+
+    vec2 dir = vec2(cos(vA.b), sin(vA.b));
+    vec2 perp = vec2(-dir.y, dir.x);
+    vec2 rel = vWorldPos - vCenter;
+    float uLocal = dot(rel, perp) / L;
+    if (abs(uLocal) > 1.18) discard;
+
+    float minDist = 99.0;
+    const int SEGS = 14;
+    float uPrev = -1.0;
+    float yPrev = uWaveAmp * size * (qs * phiBow(uPrev) + qa * phiA(uPrev));
+    vec2 pPrev = perp * (uPrev * L) + dir * yPrev;
+
+    for (int s = 1; s <= SEGS; s++) {
+      float uNext = -1.0 + float(s) * (2.0 / float(SEGS));
+      float yNext = uWaveAmp * size * (qs * phiBow(uNext) + qa * phiA(uNext));
+      vec2 pNext = perp * (uNext * L) + dir * yNext;
+      minDist = min(minDist, sdSeg(rel, pPrev, pNext));
+      pPrev = pNext;
+    }
+
+    float strokeW = max((isDormant ? 0.036 : 0.046) * size, pxSize * 1.35);
+    float haloW   = strokeW + max(0.030 * size, pxSize * 1.20);
+    float curveMask = 1.0 - smoothstep(strokeW, strokeW + pxSize * 1.20, minDist);
+    float haloMask  = 1.0 - smoothstep(haloW,   haloW   + pxSize * 1.20, minDist);
+
+    vec3 cStag    = vec3(0.82, 0.86, 0.92);
+    vec3 cPush    = vec3(0.22, 0.76, 1.00);
+    vec3 cDraft   = vec3(1.00, 0.86, 0.36);
+    vec3 cNewBase = vec3(0.88, 0.32, 0.98);
+
+    vec3 baseCol;
+    float dashMask = 1.0;
+    float alphaScale = clamp(life * 1.25, 0.0, 1.0);
+
+    if (isDormant) {
+      float solidity = clamp(-stateFlag - 1.0, 0.0, 1.0);
+      float waveDash = cos(uLocal * 18.85);
+      dashMask = smoothstep(-0.10, 0.25, waveDash + mix(-0.18, 1.25, smoothstep(0.55, 0.96, solidity)));
+      baseCol = mix(vec3(0.76, 0.36, 0.92), cNewBase, solidity);
+      alphaScale = clamp(0.32 + 0.68 * solidity, 0.0, 1.0) * clamp(life * 1.35, 0.0, 1.0);
+    } else {
+      float pushAmt = smoothstep(0.15, 0.72, abs(vAxial) / max(uVPush, 0.4));
+      vec3 activeCol = mix(cPush, cDraft, smoothstep(0.25, 0.75, max(stateFlag, 0.0)));
+      baseCol = mix(cStag, activeCol, pushAmt);
+      float newAmt = clamp(-stateFlag, 0.0, 1.0);
+      baseCol = mix(baseCol, cNewBase, newAmt);
+    }
+
+    float alpha = max(curveMask, haloMask * (isDormant ? 0.45 : 0.72)) * dashMask * alphaScale;
+    if (alpha <= 0.005) discard;
+    vec3 darkHalo = vec3(0.03, 0.04, 0.06);
+    vec3 finalCol = mix(darkHalo, baseCol, clamp(curveMask / max(haloMask, 0.01), 0.0, 1.0));
+    fragColor = vec4(finalCol, alpha);
+  }`;
+
+  const progP2G          = createProgram(P2G_VS, P2G_FS);
+  const progMedium       = createProgram(QUAD_VS, MEDIUM_FS);
+  const progUpdate       = createProgram(QUAD_VS, BIRD_UPDATE_FS);
+  const progDisplayMed   = createProgram(QUAD_VS, DISPLAY_MED_FS);
+  const progDisplayBirds = createProgram(DISPLAY_BIRDS_VS, DISPLAY_BIRDS_FS);
+
+  const birdA   = [createFloatTex(MAX_BIRDS, 1), createFloatTex(MAX_BIRDS, 1)];
+  const birdB   = [createFloatTex(MAX_BIRDS, 1), createFloatTex(MAX_BIRDS, 1)];
+  const birdC   = [createFloatTex(MAX_BIRDS, 1), createFloatTex(MAX_BIRDS, 1)];
+  const birdFbo = [
+    createFBO([birdA[0], birdB[0], birdC[0]]),
+    createFBO([birdA[1], birdB[1], birdC[1]])
+  ];
+
+  const ibTex = createFloatTex(FMX, FMY, !extFloatBlend);
+  const ibFbo = createFBO([ibTex]);
+
+  const medA   = [createFloatTex(FMX, FMY), createFloatTex(FMX, FMY)];
+  const medB   = [createFloatTex(FMX, FMY), createFloatTex(FMX, FMY)];
+  const medFbo = [createFBO([medA[0], medB[0]]), createFBO([medA[1], medB[1]])];
+
+  let cur = 0;
+  let medCur = 0;
+  let frameCount = 0;
+  let simTime = 0;
+  let simAccum = 0;
+  let initComY = WORLD_H * 0.5;
+  let initComX = WORLD_W * 0.5;
+  let initHeadX = WORLD_W * 0.5;
+  let initHeadY = WORLD_H * 0.5;
+
+  function makeEmptyBuffers() {
+    return [
+      new Float32Array(MAX_BIRDS * 4),
+      new Float32Array(MAX_BIRDS * 4),
+      new Float32Array(MAX_BIRDS * 4)
+    ];
+  }
+
+  function uploadState(dA, dB, dC) {
+    const flatZero = new Float32Array(FMX * FMY * 4);
+    for (let i = 0; i < 2; i++) {
+      gl.bindTexture(gl.TEXTURE_2D, birdA[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MAX_BIRDS, 1, gl.RGBA, gl.FLOAT, dA);
+      gl.bindTexture(gl.TEXTURE_2D, birdB[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MAX_BIRDS, 1, gl.RGBA, gl.FLOAT, dB);
+      gl.bindTexture(gl.TEXTURE_2D, birdC[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MAX_BIRDS, 1, gl.RGBA, gl.FLOAT, dC);
+      gl.bindTexture(gl.TEXTURE_2D, medA[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, FMX, FMY, gl.RGBA, gl.FLOAT, flatZero);
+      gl.bindTexture(gl.TEXTURE_2D, medB[i]);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, FMX, FMY, gl.RGBA, gl.FLOAT, flatZero);
+    }
+    cur = 0;
+    medCur = 0;
+    let cx = 0, cy = 0, n = 0;
+    let foundHead = false;
+    for (let i = 0; i < MAX_BIRDS; i++) {
+      if (dB[i * 4] > 0.01) {
+        if (!foundHead) { initHeadX = dA[i * 4]; initHeadY = dA[i * 4 + 1]; foundHead = true; }
+        cx += dA[i * 4]; cy += dA[i * 4 + 1]; n++;
+      }
+    }
+    initComX = n > 0 ? cx / n : WORLD_W * 0.5;
+    initComY = n > 0 ? cy / n : WORLD_H * 0.5;
+  }
+
+  function setBird(dA, dB, dC, idx, x, y, angle, vAxial, size = 1.0, life = 1.0, qs = 0.70, omega = 0.0) {
+    const wx = ((x % WORLD_W) + WORLD_W) % WORLD_W;
+    const wy = ((y % WORLD_H) + WORLD_H) % WORLD_H;
+    const i4 = idx * 4;
+    dA[i4 + 0] = wx;
+    dA[i4 + 1] = wy;
+    dA[i4 + 2] = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    dA[i4 + 3] = vAxial;
+    dB[i4 + 0] = life;
+    dB[i4 + 1] = size;
+    dB[i4 + 2] = qs;
+    dB[i4 + 3] = 0.0;
+    dC[i4 + 0] = 0.0;
+    dC[i4 + 1] = 0.0;
+    dC[i4 + 2] = omega;
+    dC[i4 + 3] = 0.0;
+  }
+
+  function setSlider(slId, valId, key, val, fmt) {
+    params[key] = val;
+    document.getElementById(slId).value = val;
+    document.getElementById(valId).textContent = fmt(val);
+  }
+
+  function setDenseMediumDefaults() {
+    setSlider('sl-stiff', 'val-stiff', 'bulkStiff', 950.0, v => v.toFixed(1));
+    setSlider('sl-shear', 'val-shear', 'shearRigid', 480.0, v => v.toFixed(1));
+    setSlider('sl-heavy', 'val-heavy', 'heaviness', 5.0, v => v.toFixed(1));
+    setSlider('sl-ibgrip', 'val-ibgrip', 'ibGrip', 950.0, v => v.toFixed(1));
+    setSlider('sl-bulkdamp', 'val-bulkdamp', 'bulkDamp', 1.35, v => v.toFixed(2));
+    setSlider('sl-sheardamp', 'val-sheardamp', 'shearDamp', 0.90, v => v.toFixed(2));
+  }
+
+  function seedPreset(kind) {
+    const [dA, dB, dC] = makeEmptyBuffers();
+    const cx = WORLD_W * 0.5;
+    const cy = WORLD_H * 0.5;
+    simTime = 0;
+    simAccum = 0;
+    params.activePreset = kind;
+    params.useSponge = true;
+
+    if (kind === 'climb' || kind === 'ignition') {
+      setDenseMediumDefaults();
+      setSlider('sl-nest', 'val-nest', 'nestSpace', 0.40, v => v.toFixed(2) + '×');
+      setSlider('sl-size', 'val-size', 'sizeScale', 1.00, v => v.toFixed(2) + '×');
+      setSlider('sl-ignite', 'val-ignite', 'curlIgnite', 1.15, v => v.toFixed(2));
+      setSlider('sl-igthresh', 'val-igthresh', 'igniteThresh', 0.75, v => v.toFixed(2));
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      setSlider('sl-fade', 'val-fade', 'isolatedFade', 0.0, v => v.toFixed(2));
+      const vp = params.vPush;
+      setBird(dA, dB, dC, 0, cx, cy - 1.2, Math.PI * 0.5, vp * 1.15, 1.05, 1.0, 0.75, 0.0);
+      params.zoomed = true; params.zoomLevel = 5.4; params.zoomCenter = [cx, cy - 0.5];
+      params.modeName = '1. Pure IB Dense Climb (Zero-Glue)';
+      params.activePreset = 'climb';
+    } else if (kind === 'soft') {
+      setSlider('sl-stiff', 'val-stiff', 'bulkStiff', 40.0, v => v.toFixed(1));
+      setSlider('sl-shear', 'val-shear', 'shearRigid', 6.0, v => v.toFixed(1));
+      setSlider('sl-heavy', 'val-heavy', 'heaviness', 1.0, v => v.toFixed(1));
+      setSlider('sl-ibgrip', 'val-ibgrip', 'ibGrip', 110.0, v => v.toFixed(1));
+      setSlider('sl-bulkdamp', 'val-bulkdamp', 'bulkDamp', 1.30, v => v.toFixed(2));
+      setSlider('sl-sheardamp', 'val-sheardamp', 'shearDamp', 1.10, v => v.toFixed(2));
+      setSlider('sl-nest', 'val-nest', 'nestSpace', 0.40, v => v.toFixed(2) + '×');
+      setSlider('sl-size', 'val-size', 'sizeScale', 1.00, v => v.toFixed(2) + '×');
+      const vp = params.vPush;
+      setBird(dA, dB, dC, 0, cx, cy - 1.2, Math.PI * 0.5, vp * 1.15, 1.05, 1.0, 0.75, 0.0);
+      setSlider('sl-ignite', 'val-ignite', 'curlIgnite', 1.15, v => v.toFixed(2));
+      setSlider('sl-igthresh', 'val-igthresh', 'igniteThresh', 0.75, v => v.toFixed(2));
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      setSlider('sl-fade', 'val-fade', 'isolatedFade', 0.0, v => v.toFixed(2));
+      params.zoomed = true; params.zoomLevel = 5.4; params.zoomCenter = [cx, cy - 1.2];
+      params.modeName = '2. Soft Medium (Misses Dormant Basis)';
+    } else if (kind === 'ring') {
+      setDenseMediumDefaults();
+      setSlider('sl-nest', 'val-nest', 'nestSpace', 0.40, v => v.toFixed(2) + '×');
+      setSlider('sl-size', 'val-size', 'sizeScale', 1.00, v => v.toFixed(2) + '×');
+      const vp = params.vPush;
+      const count = 16, R = (count * 0.54) / (Math.PI * 2);
+      for (let i = 0; i < count; i++) {
+        const a = (i / count) * Math.PI * 2;
+        const x = cx + Math.cos(a) * R;
+        const y = cy + Math.sin(a) * R;
+        const ang = a + Math.PI * 0.5;
+        setBird(dA, dB, dC, i, x, y, ang, vp * (0.85 + 0.15 * Math.cos(i * 1.1)), 1.0, 1.0, 0.65);
+      }
+      setSlider('sl-ignite', 'val-ignite', 'curlIgnite', 1.15, v => v.toFixed(2));
+      setSlider('sl-igthresh', 'val-igthresh', 'igniteThresh', 0.75, v => v.toFixed(2));
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      setSlider('sl-fade', 'val-fade', 'isolatedFade', 0.0, v => v.toFixed(2));
+      params.zoomed = true; params.zoomLevel = 5.2; params.zoomCenter = [cx, cy];
+      params.modeName = '3. Tight Closed Ring (16, Zero-Glue)';
+    } else if (kind === 'tip-pair') {
+      setDenseMediumDefaults();
+      setSlider('sl-size', 'val-size', 'sizeScale', 1.00, v => v.toFixed(2) + '×');
+      const vp = params.vPush;
+      setBird(dA, dB, dC, 0, cx - 0.20, cy + 0.24, Math.PI * 0.5, vp,        1.0, 1.0, 0.70);
+      setBird(dA, dB, dC, 1, cx + 0.22, cy - 0.24, Math.PI * 0.5, vp * 0.85, 1.0, 1.0, 0.55);
+      setSlider('sl-ignite', 'val-ignite', 'curlIgnite', 1.15, v => v.toFixed(2));
+      setSlider('sl-igthresh', 'val-igthresh', 'igniteThresh', 0.75, v => v.toFixed(2));
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      setSlider('sl-fade', 'val-fade', 'isolatedFade', 0.0, v => v.toFixed(2));
+      params.zoomed = true; params.zoomLevel = 5.2; params.zoomCenter = [cx, cy];
+      params.modeName = '4. Asymmetric Tip Pair (Natural Curve Test)';
+    } else if (kind === 'tip-chain') {
+      setDenseMediumDefaults();
+      setSlider('sl-size', 'val-size', 'sizeScale', 1.00, v => v.toFixed(2) + '×');
+      const vp = params.vPush;
+      for (let i = 0; i < 6; i++) {
+        const x = cx - 0.35 + i * 0.14;
+        const y = cy - 1.2 + i * 0.44;
+        setBird(dA, dB, dC, i, x, y, Math.PI * 0.5, vp * 0.90, 1.0, 1.0, 0.65);
+      }
+      setSlider('sl-ignite', 'val-ignite', 'curlIgnite', 0.0, v => v.toFixed(2));
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      setSlider('sl-fade', 'val-fade', 'isolatedFade', 0.0, v => v.toFixed(2));
+      params.zoomed = true; params.zoomLevel = 5.0; params.zoomCenter = [cx, cy];
+      params.modeName = '5. Nested Chain (6, Zero-Glue)';
+    } else if (kind === 'single') {
+      setDenseMediumDefaults();
+      setSlider('sl-size', 'val-size', 'sizeScale', 1.00, v => v.toFixed(2) + '×');
+      const vp = params.vPush;
+      setBird(dA, dB, dC, 0, cx, cy, Math.PI * 0.5, vp, 1.0, 1.0, 0.70);
+      setSlider('sl-ignite', 'val-ignite', 'curlIgnite', 0.0, v => v.toFixed(2));
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      setSlider('sl-fade', 'val-fade', 'isolatedFade', 0.0, v => v.toFixed(2));
+      params.zoomed = true; params.zoomLevel = 6.0; params.zoomCenter = [cx, cy];
+      params.modeName = '6. Single Arch (No Basis Control)';
+    } else if (kind === 'bigbang') {
+      params.useSponge = false;
+      setDenseMediumDefaults();
+      setSlider('sl-size', 'val-size', 'sizeScale', 1.00, v => v.toFixed(2) + '×');
+      const vp = params.vPush;
+      let s = 202678;
+      const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const placed = [];
+      for (let k = 0; k < 56; k++) {
+        for (let tries = 0; tries < 25; tries++) {
+          const rx = 8 + rnd() * (WORLD_W - 16);
+          const ry = 6 + rnd() * (WORLD_H - 12);
+          let ok = true;
+          for (const p of placed) {
+            if (Math.hypot(rx - p[0], ry - p[1]) < 3.6) { ok = false; break; }
+          }
+          if (ok) {
+            placed.push([rx, ry]);
+            const ang = rnd() * Math.PI * 2;
+            const strong = (k < 12);
+            const sz = strong ? 1.15 : (0.50 + 0.22 * rnd());
+            const v0 = strong ? vp * 1.15 : vp * 0.45;
+            setBird(dA, dB, dC, k, rx, ry, ang, v0, sz, strong ? 1.0 : 0.65, strong ? 0.75 : 0.35);
+            break;
+          }
+        }
+      }
+      setSlider('sl-ignite', 'val-ignite', 'curlIgnite', 1.15, v => v.toFixed(2));
+      setSlider('sl-igthresh', 'val-igthresh', 'igniteThresh', 1.55, v => v.toFixed(2));
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.12, v => v.toFixed(2));
+      setSlider('sl-fade', 'val-fade', 'isolatedFade', 0.18, v => v.toFixed(2));
+      params.zoomed = false; params.zoomLevel = 1.0; params.zoomCenter = [cx, cy];
+      params.modeName = '7. Dense Big Bang Soup';
+    } else if (kind === 'cross90') {
+      setDenseMediumDefaults();
+      setSlider('sl-size', 'val-size', 'sizeScale', 1.00, v => v.toFixed(2) + '×');
+      const vp = params.vPush;
+      setBird(dA, dB, dC, 0, cx - 0.72, cy,        0.0,           vp, 1.0, 1.0, 0.70);
+      setBird(dA, dB, dC, 1, cx,        cy - 0.72, Math.PI * 0.5, vp, 1.0, 1.0, 0.70);
+      setSlider('sl-ignite', 'val-ignite', 'curlIgnite', 0.0, v => v.toFixed(2));
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      setSlider('sl-fade', 'val-fade', 'isolatedFade', 0.0, v => v.toFixed(2));
+      params.zoomed = true; params.zoomLevel = 5.6; params.zoomCenter = [cx, cy];
+      params.modeName = '8. Crossed 90° [No-Overlap]';
+    } else if (kind === 'soup') {
+      params.useSponge = false;
+      setDenseMediumDefaults();
+      setSlider('sl-size', 'val-size', 'sizeScale', 1.00, v => v.toFixed(2) + '×');
+      const vp = params.vPush;
+      let s = 133798;
+      const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const placed = [];
+      for (let k = 0; k < 180; k++) {
+        for (let tries = 0; tries < 25; tries++) {
+          const rx = rnd() * WORLD_W;
+          const ry = rnd() * WORLD_H;
+          let ok = true;
+          for (let p = 0; p < placed.length; p++) {
+            let dx = Math.abs(rx - placed[p][0]);
+            let dy = Math.abs(ry - placed[p][1]);
+            if (dx > WORLD_W * 0.5) dx = WORLD_W - dx;
+            if (dy > WORLD_H * 0.5) dy = WORLD_H - dy;
+            if (dx * dx + dy * dy < 1.8 * 1.8) { ok = false; break; }
+          }
+          if (ok) {
+            placed.push([rx, ry]);
+            const ang = rnd() * Math.PI * 2;
+            const sgn = rnd() > 0.5 ? 1.0 : -1.0;
+            const sz  = 0.85 + rnd() * 0.30;
+            setBird(dA, dB, dC, k, rx, ry, ang, sgn * vp, sz, 0.65 + 0.35 * rnd(), sgn * 0.70);
+            break;
+          }
+        }
+      }
+      setSlider('sl-ignite', 'val-ignite', 'curlIgnite', 0.0, v => v.toFixed(2));
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.12, v => v.toFixed(2));
+      setSlider('sl-fade', 'val-fade', 'isolatedFade', 0.08, v => v.toFixed(2));
+      params.zoomed = false; params.zoomLevel = 1.0; params.zoomCenter = [cx, cy];
+      params.modeName = '9. Dense Soup (180)';
+    } else if (kind === 'clear') {
+      setSlider('sl-spawn', 'val-spawn', 'spawn', 0.0, v => v.toFixed(2));
+      params.modeName = 'Cleared (Click/Drag to seed)';
+    }
+
+    uploadState(dA, dB, dC);
+    updateModeUI(params.activePreset);
+  }
+
+  function updateModeUI(activeKind) {
+    document.getElementById('mode-label').textContent = params.modeName;
+    const map = {
+      climb: 'btn-climb',
+      soft: 'btn-soft',
+      ring: 'btn-ring',
+      'tip-pair': 'btn-tip-pair',
+      'tip-chain': 'btn-tip-chain',
+      single: 'btn-single',
+      bigbang: 'btn-bigbang',
+      cross90: 'btn-cross90',
+      soup: 'btn-soup',
+      clear: 'btn-clear'
+    };
+    for (const [k, id] of Object.entries(map)) {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('active', k === activeKind);
+    }
+    document.getElementById('btn-zoom').classList.toggle('active', params.zoomed);
+    document.getElementById('btn-zoom').textContent = params.zoomed ? 'Zoom Out (Space)' : 'Zoom In (Space)';
+  }
+
+  function bindSlider(slId, valId, key, fmt) {
+    const el = document.getElementById(slId);
+    const valEl = document.getElementById(valId);
+    el.addEventListener('input', () => {
+      params[key] = parseFloat(el.value);
+      valEl.textContent = fmt(params[key]);
+    });
+  }
+
+  bindSlider('sl-stiff', 'val-stiff', 'bulkStiff', v => v.toFixed(1));
+  bindSlider('sl-shear', 'val-shear', 'shearRigid', v => v.toFixed(1));
+  bindSlider('sl-heavy', 'val-heavy', 'heaviness', v => v.toFixed(1));
+  bindSlider('sl-ibgrip', 'val-ibgrip', 'ibGrip', v => v.toFixed(1));
+  bindSlider('sl-bulkdamp', 'val-bulkdamp', 'bulkDamp', v => v.toFixed(2));
+  bindSlider('sl-sheardamp', 'val-sheardamp', 'shearDamp', v => v.toFixed(2));
+  bindSlider('sl-nest', 'val-nest', 'nestSpace', v => v.toFixed(2) + '×');
+  bindSlider('sl-size', 'val-size', 'sizeScale', v => v.toFixed(2) + '×');
+  bindSlider('sl-vpush', 'val-vpush', 'vPush', v => v.toFixed(1));
+  bindSlider('sl-wall', 'val-wall', 'wallRebound', v => v.toFixed(1));
+  bindSlider('sl-sustain', 'val-sustain', 'sustain', v => v.toFixed(1));
+  bindSlider('sl-waveamp', 'val-waveamp', 'waveAmp', v => v.toFixed(2));
+  bindSlider('sl-ibarch', 'val-ibarch', 'ibArchReact', v => v.toFixed(1));
+  bindSlider('sl-ignite', 'val-ignite', 'curlIgnite', v => v.toFixed(2));
+  bindSlider('sl-igthresh', 'val-igthresh', 'igniteThresh', v => v.toFixed(2));
+  bindSlider('sl-fade', 'val-fade', 'isolatedFade', v => v.toFixed(2));
+  bindSlider('sl-spawn', 'val-spawn', 'spawn', v => v.toFixed(2));
+  bindSlider('sl-psteer', 'val-psteer', 'pressSteer', v => v.toFixed(1));
+  bindSlider('sl-flowtorque', 'val-flowtorque', 'flowTorque', v => v.toFixed(1));
+  bindSlider('sl-twist', 'val-twist', 'twistDrive', v => v.toFixed(2));
+
+  document.getElementById('chk-foam').addEventListener('change', e => params.showFoam = e.target.checked);
+  document.getElementById('chk-flow').addEventListener('change', e => params.showFlow = e.target.checked);
+  document.getElementById('chk-curl').addEventListener('change', e => params.showCurl = e.target.checked);
+  document.getElementById('chk-grid').addEventListener('change', e => params.showGrid = e.target.checked);
+
+  let stepModeLocked = false;
+
+  function selectPresetInteractive(kind) {
+    stepModeLocked = false;
+    if (params.paused) {
+      params.paused = false;
+      document.getElementById('btn-pause').classList.remove('active');
+      document.getElementById('btn-pause').textContent = 'Pause (P)';
+    }
+    seedPreset(kind);
+  }
+
+  document.getElementById('btn-climb').onclick = () => selectPresetInteractive('climb');
+  document.getElementById('btn-soft').onclick = () => selectPresetInteractive('soft');
+  document.getElementById('btn-ring').onclick = () => selectPresetInteractive('ring');
+  document.getElementById('btn-tip-pair').onclick = () => selectPresetInteractive('tip-pair');
+  document.getElementById('btn-tip-chain').onclick = () => selectPresetInteractive('tip-chain');
+  document.getElementById('btn-single').onclick = () => selectPresetInteractive('single');
+  document.getElementById('btn-bigbang').onclick = () => selectPresetInteractive('bigbang');
+  document.getElementById('btn-cross90').onclick = () => selectPresetInteractive('cross90');
+  document.getElementById('btn-soup').onclick = () => selectPresetInteractive('soup');
+  document.getElementById('btn-clear').onclick = () => selectPresetInteractive('clear');
+
+  document.getElementById('btn-pause').onclick = () => {
+    params.paused = !params.paused;
+    document.getElementById('btn-pause').classList.toggle('active', params.paused);
+    document.getElementById('btn-pause').textContent = params.paused ? 'Resume (P)' : 'Pause (P)';
+  };
+  document.getElementById('btn-zoom').onclick = () => {
+    params.zoomed = !params.zoomed;
+    if (params.zoomed && params.zoomLevel <= 1.2) params.zoomLevel = 5.4;
+    document.getElementById('btn-zoom').classList.toggle('active', params.zoomed);
+    document.getElementById('btn-zoom').textContent = params.zoomed ? 'Zoom Out (Space)' : 'Zoom In (Space)';
+  };
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); document.getElementById('btn-zoom').click(); }
+    else if (e.key === 'p' || e.key === 'P') { document.getElementById('btn-pause').click(); }
+    else if (e.key === 'h' || e.key === 'H') { document.getElementById('hud').classList.toggle('hidden'); }
+  });
+
+  let mouseDown = false;
+  let lastPaintWorld = [WORLD_W * 0.5, WORLD_H * 0.5];
+  let paintPendingSlot = -1;
+  let paintPendingPos = [0, 0];
+  let paintPendingAngle = Math.PI * 0.5;
+  let paintSlotCursor = 190;
+  let currentZoom = 5.4;
+
+  function screenToWorld(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const u = (clientX - rect.left) / rect.width;
+    const v = 1.0 - (clientY - rect.top) / rect.height;
+    const aspect = rect.width / Math.max(rect.height, 1);
+    const gridAspect = WORLD_W / WORLD_H;
+    let vx = WORLD_W / currentZoom, vy = WORLD_H / currentZoom;
+    if (aspect > gridAspect) vx = vy * aspect;
+    else vy = vx / aspect;
+    return [
+      params.zoomCenter[0] + (u - 0.5) * vx,
+      params.zoomCenter[1] + (v - 0.5) * vy
+    ];
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    mouseDown = true;
+    const pt = screenToWorld(e.clientX, e.clientY);
+    lastPaintWorld = pt;
+    paintPendingPos = pt;
+    paintPendingAngle = Math.PI * 0.5;
+    paintPendingSlot = paintSlotCursor;
+    paintSlotCursor = (paintSlotCursor + 1) % MAX_BIRDS;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!mouseDown) return;
+    const next = screenToWorld(e.clientX, e.clientY);
+    const dx = next[0] - lastPaintWorld[0];
+    const dy = next[1] - lastPaintWorld[1];
+    const stepD = Math.max(params.nestSpace * params.sizeScale, 0.55);
+    if (dx * dx + dy * dy > stepD * stepD) {
+      paintPendingPos = next;
+      paintPendingAngle = Math.atan2(dy, dx);
+      paintPendingSlot = paintSlotCursor;
+      paintSlotCursor = (paintSlotCursor + 1) % MAX_BIRDS;
+      lastPaintWorld = next;
+    }
+  });
+  canvas.addEventListener('pointerup', () => { mouseDown = false; });
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.floor(canvas.clientWidth * dpr);
+    const h = Math.floor(canvas.clientHeight * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function drawQuad(prog, attribName = 'aPos') {
+    const loc = gl.getAttribLocation(prog, attribName);
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  function drawBirdsInstanced(prog) {
+    const loc = gl.getAttribLocation(prog, 'aQuad');
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, MAX_BIRDS * 9);
+  }
+
+  function splatIB() {
+    gl.viewport(0, 0, FMX, FMY);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, ibFbo);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.useProgram(progP2G);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, birdA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progP2G, 'uBirdA'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, birdB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progP2G, 'uBirdB'), 1);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, birdC[cur]);
+    gl.uniform1i(gl.getUniformLocation(progP2G, 'uBirdC'), 2);
+    gl.uniform1f(gl.getUniformLocation(progP2G, 'uWaveAmp'), params.waveAmp);
+    gl.uniform1f(gl.getUniformLocation(progP2G, 'uVPush'), params.vPush);
+    gl.uniform1f(gl.getUniformLocation(progP2G, 'uSizeScale'), params.sizeScale);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    drawBirdsInstanced(progP2G);
+    gl.disable(gl.BLEND);
+  }
+
+  function stepMedium(medDt) {
+    const medNext = 1 - medCur;
+    gl.viewport(0, 0, FMX, FMY);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, medFbo[medNext]);
+    gl.useProgram(progMedium);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, medA[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progMedium, 'uMedA'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, medB[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progMedium, 'uMedB'), 1);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, ibTex);
+    gl.uniform1i(gl.getUniformLocation(progMedium, 'uIBTex'), 2);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uDt'), medDt);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uBulkStiff'), params.bulkStiff);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uShearRigid'), params.shearRigid);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uHeaviness'), params.heaviness);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uIBGrip'), params.ibGrip);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uBulkDamp'), params.bulkDamp);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uShearDamp'), params.shearDamp);
+    gl.uniform1f(gl.getUniformLocation(progMedium, 'uUseSponge'), params.useSponge ? 1.0 : 0.0);
+    drawQuad(progMedium);
+    medCur = medNext;
+  }
+
+  function stepSim(birdDt) {
+    splatIB();
+
+    const cMaxEst = Math.sqrt((params.bulkStiff * 5.2 + params.shearRigid) / Math.max(params.heaviness * 0.45, 0.25));
+    const medSubsteps = Math.max(5, Math.min(32, Math.ceil((birdDt * cMaxEst) / (H_MED * 0.23))));
+    const medDt = birdDt / medSubsteps;
+    for (let s = 0; s < medSubsteps; s++) {
+      stepMedium(medDt);
+    }
+
+    const next = 1 - cur;
+    gl.viewport(0, 0, MAX_BIRDS, 1);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, birdFbo[next]);
+    gl.useProgram(progUpdate);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, birdA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uBirdA'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, birdB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uBirdB'), 1);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, birdC[cur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uBirdC'), 2);
+    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, medA[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uMedA'), 3);
+    gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, medB[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uMedB'), 4);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uDt'), birdDt);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uVPush'), params.vPush);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uWallRebound'), params.wallRebound);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uBulkStiff'), params.bulkStiff);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uShearRigid'), params.shearRigid);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uHeaviness'), params.heaviness);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uSustain'), params.sustain);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uNestSpace'), params.nestSpace);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uSizeScale'), params.sizeScale);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uWaveAmp'), params.waveAmp);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uIBArchReact'), params.ibArchReact);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uCurlIgnite'), params.curlIgnite);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uIgniteThresh'), params.igniteThresh);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uIsolatedFade'), params.isolatedFade);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uPressSteer'), params.pressSteer);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uFlowTorque'), params.flowTorque);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uTwistDrive'), params.twistDrive);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uSpawnRate'), params.spawn);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uFrame'), frameCount);
+    gl.uniform1i(gl.getUniformLocation(progUpdate, 'uPaintSlot'), paintPendingSlot);
+    gl.uniform2f(gl.getUniformLocation(progUpdate, 'uPaintPos'), paintPendingPos[0], paintPendingPos[1]);
+    gl.uniform1f(gl.getUniformLocation(progUpdate, 'uPaintAngle'), paintPendingAngle);
+
+    drawQuad(progUpdate);
+    paintPendingSlot = -1;
+    cur = next;
+    frameCount++;
+    simTime += birdDt;
+  }
+
+  // --- Telemetry & Verification Readback ---
+  const bABuf = new Float32Array(MAX_BIRDS * 4);
+  const bBBuf = new Float32Array(MAX_BIRDS * 4);
+  const bCBuf = new Float32Array(MAX_BIRDS * 4);
+  const mBBuf = new Float32Array(FMX * FMY * 4);
+  const phiBowJS = u => Math.cos(0.5 * Math.PI * u) - 0.6388;
+  const phiAJS   = u => Math.sin(Math.PI * u);
+
+  function computeMinGap(alive) {
+    let minGap = 99.0;
+    const sc = params.sizeScale;
+    const maxR2 = (2.8 * Math.max(sc, 1.0)) * (2.8 * Math.max(sc, 1.0));
+    for (let a = 0; a < alive.length; a++) {
+      const A = alive[a], aSz = A.sz * sc, adx = Math.cos(A.ang), ady = Math.sin(A.ang), apx = -ady, apy = adx, aL = BOW_HALF_LEN * aSz;
+      const aQs = A.dormant ? 0.0 : A.qs, aQa = A.dormant ? 0.0 : A.qa;
+      for (let b = a + 1; b < alive.length; b++) {
+        const B = alive[b];
+        let dcx = A.x - B.x, dcy = A.y - B.y;
+        if (dcx > WORLD_W * 0.5) dcx -= WORLD_W; else if (dcx < -WORLD_W * 0.5) dcx += WORLD_W;
+        if (dcy > WORLD_H * 0.5) dcy -= WORLD_H; else if (dcy < -WORLD_H * 0.5) dcy += WORLD_H;
+        if (dcx * dcx + dcy * dcy > maxR2) continue;
+        const bSz = B.sz * sc, bdx = Math.cos(B.ang), bdy = Math.sin(B.ang), bpx = -bdy, bpy = bdx, bL = BOW_HALF_LEN * bSz;
+        const bQs = B.dormant ? 0.0 : B.qs, bQa = B.dormant ? 0.0 : B.qa;
+        for (let mk = 0; mk < NUM_MARKERS; mk++) {
+          const um = (mk - 0.5 * (NUM_MARKERS - 1)) * (2.0 / NUM_MARKERS);
+          const ay = params.waveAmp * aSz * (aQs * phiBowJS(um) + aQa * phiAJS(um));
+          const amx = apx * (um * aL) + adx * ay, amy = apy * (um * aL) + ady * ay;
+          for (let nk = 0; nk < NUM_MARKERS; nk++) {
+            const un = (nk - 0.5 * (NUM_MARKERS - 1)) * (2.0 / NUM_MARKERS);
+            const by = params.waveAmp * bSz * (bQs * phiBowJS(un) + bQa * phiAJS(un));
+            const bmx = bpx * (un * bL) + bdx * by, bmy = bpy * (un * bL) + bdy * by;
+            const d = Math.hypot(dcx + amx - bmx, dcy + amy - bmy);
+            if (d < minGap) minGap = d;
+          }
+        }
+      }
+    }
+    return minGap < 90 ? minGap : null;
+  }
+
+  function wrapAngDiff(a, b) {
+    let d = a - b;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    return d;
+  }
+
+  function analyzeSpine(active) {
+    if (active.length < 2) return { arcBendDeg: 0, maxChainGap: 0, maxLatSlip: 0 };
+    const used = new Set();
+    let curB = active.find(b => b.idx === 0) || active[0];
+    used.add(curB.idx);
+    const chain = [curB];
+    while (chain.length < active.length) {
+      let best = null, bestD = 99;
+      for (const cand of active) {
+        if (used.has(cand.idx)) continue;
+        let dx = cand.x - curB.x, dy = cand.y - curB.y;
+        if (dx > WORLD_W * 0.5) dx -= WORLD_W; else if (dx < -WORLD_W * 0.5) dx += WORLD_W;
+        if (dy > WORLD_H * 0.5) dy -= WORLD_H; else if (dy < -WORLD_H * 0.5) dy += WORLD_H;
+        const d = Math.hypot(dx, dy);
+        if (d < bestD) { bestD = d; best = cand; }
+      }
+      if (!best || bestD > 3.0) break;
+      used.add(best.idx);
+      chain.push(best);
+      curB = best;
+    }
+    let arcBend = 0, maxChainGap = 0, maxLatSlip = 0;
+    for (let k = 0; k + 1 < chain.length; k++) {
+      const A = chain[k], B = chain[k + 1];
+      let dx = A.x - B.x, dy = A.y - B.y;
+      if (dx > WORLD_W * 0.5) dx -= WORLD_W; else if (dx < -WORLD_W * 0.5) dx += WORLD_W;
+      if (dy > WORLD_H * 0.5) dy -= WORLD_H; else if (dy < -WORLD_H * 0.5) dy += WORLD_H;
+      const dist = Math.hypot(dx, dy);
+      if (dist > maxChainGap) maxChainGap = dist;
+      arcBend += wrapAngDiff(A.ang, B.ang);
+      const tx = Math.cos(A.ang) + Math.cos(B.ang), ty = Math.sin(A.ang) + Math.sin(B.ang);
+      const tLen = Math.hypot(tx, ty);
+      if (tLen > 1e-4) {
+        const nx = -ty / tLen, ny = tx / tLen;
+        const slip = Math.abs(dx * nx + dy * ny);
+        if (slip > maxLatSlip) maxLatSlip = slip;
+      }
+    }
+    return {
+      arcBendDeg: +(Math.abs(arcBend) * 57.2958).toFixed(1),
+      maxChainGap: +maxChainGap.toFixed(3),
+      maxLatSlip: +maxLatSlip.toFixed(3)
+    };
+  }
+
+  function readLiveMetrics(includeMed = true) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, birdFbo[cur]);
+    gl.readBuffer(gl.COLOR_ATTACHMENT0); gl.readPixels(0, 0, MAX_BIRDS, 1, gl.RGBA, gl.FLOAT, bABuf);
+    gl.readBuffer(gl.COLOR_ATTACHMENT1); gl.readPixels(0, 0, MAX_BIRDS, 1, gl.RGBA, gl.FLOAT, bBBuf);
+    gl.readBuffer(gl.COLOR_ATTACHMENT2); gl.readPixels(0, 0, MAX_BIRDS, 1, gl.RGBA, gl.FLOAT, bCBuf);
+    if (includeMed) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, medFbo[medCur]);
+      gl.readBuffer(gl.COLOR_ATTACHMENT1); gl.readPixels(0, 0, FMX, FMY, gl.RGBA, gl.FLOAT, mBBuf);
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    const alive = [];
+    let activeCount = 0, dormantCount = 0;
+    let sumX = 0, sumY = 0, sumVy = 0, sumSp = 0, maxSp = 0, nanCount = 0;
+    let headX = initHeadX, headY = initHeadY, hasHead = false;
+    for (let i = 0; i < MAX_BIRDS; i++) {
+      const o = i * 4;
+      const lf = bBBuf[o];
+      if (!Number.isFinite(lf) || !Number.isFinite(bABuf[o]) || !Number.isFinite(bABuf[o + 3])) { nanCount++; continue; }
+      if (lf <= 0.01) continue;
+      const x = bABuf[o], y = bABuf[o + 1], ang = bABuf[o + 2], va = bABuf[o + 3];
+      const sz = bBBuf[o + 1], qs = bBBuf[o + 2], qa = bCBuf[o], om = bCBuf[o + 2], sf = bCBuf[o + 3];
+      const dormant = (sf <= -1.0);
+      if (dormant) dormantCount++; else activeCount++;
+      if (i === 0) { headX = x; headY = y; hasHead = true; }
+      if (!dormant) {
+        const vy = Math.sin(ang) * va;
+        const sp = Math.abs(va);
+        sumX += x; sumY += y; sumVy += vy; sumSp += sp;
+        if (sp > maxSp) maxSp = sp;
+      }
+      alive.push({ idx: i, x, y, ang, va, sz, qs, qa, om, sf, dormant });
+    }
+
+    let phaseCoherence = 1.0;
+    if (activeCount > 1) {
+      let sPos = 0, sNeg = 0;
+      for (const b of alive) {
+        if (!b.dormant) { if (b.va >= 0) sPos++; else sNeg++; }
+      }
+      phaseCoherence = Math.max(sPos, sNeg) / activeCount;
+    }
+
+    let maxDRho = 0, minDRho = 0, maxCurl = 0;
+    if (includeMed) {
+      const N = FMX * FMY;
+      for (let k = 0; k < N; k++) {
+        const d = mBBuf[k * 4];
+        const c = Math.abs(mBBuf[k * 4 + 2]);
+        if (!Number.isFinite(d) || !Number.isFinite(c)) { nanCount++; continue; }
+        if (d > maxDRho) maxDRho = d;
+        if (d < minDRho) minDRho = d;
+        if (c > maxCurl) maxCurl = c;
+      }
+    }
+
+    const minGap = computeMinGap(alive);
+    let comXShift = 0, comYShift = 0, headXShift = 0, headYShift = 0;
+    if (activeCount > 0) {
+      let dx = (sumX / activeCount) - initComX;
+      let dy = (sumY / activeCount) - initComY;
+      if (dx > WORLD_W * 0.5) dx -= WORLD_W; if (dx < -WORLD_W * 0.5) dx += WORLD_W;
+      if (dy > WORLD_H * 0.5) dy -= WORLD_H; if (dy < -WORLD_H * 0.5) dy += WORLD_H;
+      comXShift = dx; comYShift = dy;
+    }
+    if (hasHead) {
+      let hx = headX - initHeadX;
+      let hy = headY - initHeadY;
+      if (hx > WORLD_W * 0.5) hx -= WORLD_W; if (hx < -WORLD_W * 0.5) hx += WORLD_W;
+      if (hy > WORLD_H * 0.5) hy -= WORLD_H; if (hy < -WORLD_H * 0.5) hy += WORLD_H;
+      headXShift = hx; headYShift = hy;
+    }
+
+    const activeList = alive.filter(b => !b.dormant);
+    const spine = analyzeSpine(activeList);
+
+    const c0 = Math.sqrt((params.bulkStiff + params.shearRigid) / Math.max(params.heaviness, 0.1));
+    const tk = computeTightnessJS();
+    return {
+      time: +simTime.toFixed(2),
+      preset: params.activePreset,
+      activeCount,
+      dormantCount,
+      nanCount,
+      c0: +c0.toFixed(2),
+      mach: +(params.vPush / Math.max(c0, 0.1)).toFixed(3),
+      Z: +tk.Z.toFixed(1),
+      stepDist: +tk.stepDist.toFixed(2),
+      phaseCoherence: +phaseCoherence.toFixed(2),
+      arcBendDeg: spine.arcBendDeg,
+      maxChainGap: spine.maxChainGap,
+      maxLatSlip: spine.maxLatSlip,
+      headXShift: +headXShift.toFixed(3),
+      headYShift: +headYShift.toFixed(3),
+      comXShift: +comXShift.toFixed(3),
+      comYShift: +comYShift.toFixed(3),
+      meanSpeed: activeCount > 0 ? +(sumSp / activeCount).toFixed(3) : 0,
+      maxSpeed: +maxSp.toFixed(3),
+      maxDRho: +maxDRho.toFixed(4),
+      minDRho: +minDRho.toFixed(4),
+      maxCurl: +maxCurl.toFixed(3),
+      minMarkerGap: minGap !== null ? +minGap.toFixed(3) : null
+    };
+  }
+
+  const FIXED_DT = 1 / 240;
+  let lastT = performance.now();
+  let fpsSmooth = 60;
+
+  function render(now) {
+    resize();
+    const rawDt = Math.min((now - lastT) / 1000, 0.05);
+    lastT = now;
+    if (rawDt > 0.001) fpsSmooth = fpsSmooth * 0.92 + (1 / rawDt) * 0.08;
+
+    const targetZoom = params.zoomed ? params.zoomLevel : 1.0;
+    currentZoom += (targetZoom - currentZoom) * Math.min(rawDt * 8.0, 1.0);
+
+    if (!params.paused) {
+      simAccum = Math.min(simAccum + Math.min(rawDt, 0.033), FIXED_DT * 8.5);
+      let stepsThisFrame = 0;
+      while (simAccum >= FIXED_DT && stepsThisFrame < 8) {
+        stepSim(FIXED_DT);
+        simAccum -= FIXED_DT;
+        stepsThisFrame++;
+      }
+    }
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    gl.useProgram(progDisplayMed);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, medA[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayMed, 'uMedA'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, medB[medCur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayMed, 'uMedB'), 1);
+    gl.uniform2f(gl.getUniformLocation(progDisplayMed, 'uRes'), canvas.width, canvas.height);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uZoom'), currentZoom);
+    gl.uniform2f(gl.getUniformLocation(progDisplayMed, 'uZoomCenter'), params.zoomCenter[0], params.zoomCenter[1]);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uShowFoam'), params.showFoam ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uShowFlow'), params.showFlow ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uShowCurl'), params.showCurl ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(progDisplayMed, 'uShowGrid'), params.showGrid ? 1.0 : 0.0);
+    drawQuad(progDisplayMed);
+
+    gl.useProgram(progDisplayBirds);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, birdA[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayBirds, 'uBirdA'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, birdB[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayBirds, 'uBirdB'), 1);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, birdC[cur]);
+    gl.uniform1i(gl.getUniformLocation(progDisplayBirds, 'uBirdC'), 2);
+    gl.uniform2f(gl.getUniformLocation(progDisplayBirds, 'uRes'), canvas.width, canvas.height);
+    gl.uniform1f(gl.getUniformLocation(progDisplayBirds, 'uZoom'), currentZoom);
+    gl.uniform2f(gl.getUniformLocation(progDisplayBirds, 'uZoomCenter'), params.zoomCenter[0], params.zoomCenter[1]);
+    gl.uniform1f(gl.getUniformLocation(progDisplayBirds, 'uSizeScale'), params.sizeScale);
+    gl.uniform1f(gl.getUniformLocation(progDisplayBirds, 'uWaveAmp'), params.waveAmp);
+    gl.uniform1f(gl.getUniformLocation(progDisplayBirds, 'uVPush'), params.vPush);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    drawBirdsInstanced(progDisplayBirds);
+    gl.disable(gl.BLEND);
+
+    const c0 = Math.sqrt((params.bulkStiff + params.shearRigid) / Math.max(params.heaviness, 0.1));
+    const mach = params.vPush / Math.max(c0, 0.1);
+    const tk = computeTightnessJS();
+    document.getElementById('stats-line').textContent =
+      `Time: ${simTime.toFixed(1)}s  |  FPS: ${Math.round(fpsSmooth)}  |  c₀: ${c0.toFixed(2)} c/s  |  Ma: ${mach.toFixed(2)}  |  Z: ${tk.Z.toFixed(1)}  |  d_step: ${tk.stepDist.toFixed(2)}  |  Zoom: ${currentZoom.toFixed(1)}×`;
+
+    if (!stepModeLocked && frameCount % 20 === 0) {
+      const m = readLiveMetrics(false);
+      const gStr = m.minMarkerGap === null ? '—' : m.minMarkerGap.toFixed(2);
+      document.getElementById('telemetry-line').textContent =
+        `Active: ${m.activeCount} | Dormant: ${m.dormantCount} | Sync: ${Math.round(m.phaseCoherence * 100)}% | MaxGap: ${m.maxChainGap.toFixed(2)} | LatSlip: ${m.maxLatSlip.toFixed(2)} | MinGap: ${gStr}`;
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  const urlQs = new URLSearchParams(window.location.search);
+  seedPreset(urlQs.get('preset') || 'climb');
+  if (urlQs.has('k'))        setSlider('sl-stiff', 'val-stiff', 'bulkStiff', parseFloat(urlQs.get('k')), v => v.toFixed(1));
+  if (urlQs.has('shear'))    setSlider('sl-shear', 'val-shear', 'shearRigid', parseFloat(urlQs.get('shear')), v => v.toFixed(1));
+  if (urlQs.has('rho'))      setSlider('sl-heavy', 'val-heavy', 'heaviness', parseFloat(urlQs.get('rho')), v => v.toFixed(1));
+  if (urlQs.has('ibgrip'))   setSlider('sl-ibgrip', 'val-ibgrip', 'ibGrip', parseFloat(urlQs.get('ibgrip')), v => v.toFixed(1));
+  if (urlQs.has('ibarch'))   setSlider('sl-ibarch', 'val-ibarch', 'ibArchReact', parseFloat(urlQs.get('ibarch')), v => v.toFixed(1));
+  if (urlQs.has('nest'))     setSlider('sl-nest', 'val-nest', 'nestSpace', parseFloat(urlQs.get('nest')), v => v.toFixed(2) + '×');
+  if (urlQs.has('size'))     setSlider('sl-size', 'val-size', 'sizeScale', parseFloat(urlQs.get('size')), v => v.toFixed(2) + '×');
+  if (urlQs.has('vpush'))    setSlider('sl-vpush', 'val-vpush', 'vPush', parseFloat(urlQs.get('vpush')), v => v.toFixed(1));
+  if (urlQs.has('wall'))     setSlider('sl-wall', 'val-wall', 'wallRebound', parseFloat(urlQs.get('wall')), v => v.toFixed(1));
+  if (urlQs.has('sustain'))  setSlider('sl-sustain', 'val-sustain', 'sustain', parseFloat(urlQs.get('sustain')), v => v.toFixed(1));
+  if (urlQs.has('ignite'))   setSlider('sl-ignite', 'val-ignite', 'curlIgnite', parseFloat(urlQs.get('ignite')), v => v.toFixed(2));
+  if (urlQs.has('thresh'))   setSlider('sl-igthresh', 'val-igthresh', 'igniteThresh', parseFloat(urlQs.get('thresh')), v => v.toFixed(2));
+
+  currentZoom = params.zoomed ? params.zoomLevel : 1.0;
+
+  const stepSec = parseFloat(urlQs.get('step') || '0');
+  if (stepSec > 0) {
+    stepModeLocked = true;
+    params.paused = true;
+    document.getElementById('btn-pause').classList.add('active');
+    document.getElementById('btn-pause').textContent = 'Resume (P)';
+
+    const nSteps = Math.max(1, Math.round(stepSec / FIXED_DT));
+    let reversals = 0, prevSign = 0, minGapEver = 99.0, maxChainGapEver = 0, maxLatSlipEver = 0;
+
+    for (let i = 0; i < nSteps; i++) {
+      stepSim(FIXED_DT);
+      if (i % 24 === 0) {
+        const snap = readLiveMetrics(false);
+        if (snap.minMarkerGap !== null && snap.minMarkerGap < minGapEver) minGapEver = snap.minMarkerGap;
+        if (snap.maxChainGap > maxChainGapEver) maxChainGapEver = snap.maxChainGap;
+        if (snap.maxLatSlip > maxLatSlipEver) maxLatSlipEver = snap.maxLatSlip;
+        const va0 = bABuf[3];
+        const sgn = va0 > 0.16 ? 1 : (va0 < -0.16 ? -1 : 0);
+        if (sgn !== 0 && prevSign !== 0 && sgn !== prevSign) reversals++;
+        if (sgn !== 0) prevSign = sgn;
+      }
+    }
+
+    const m = readLiveMetrics(true);
+    const gStr = m.minMarkerGap === null ? '—' : m.minMarkerGap.toFixed(2);
+    const mgEver = minGapEver < 90 ? minGapEver.toFixed(2) : '—';
+    document.getElementById('telemetry-line').textContent =
+      `Active: ${m.activeCount} | Dormant: ${m.dormantCount} | Sync: ${Math.round(m.phaseCoherence * 100)}% | Rev: ${reversals} | Head Δy: ${m.headYShift >= 0 ? '+' : ''}${m.headYShift.toFixed(2)} | MaxGap: ${m.maxChainGap.toFixed(2)} (ever ${maxChainGapEver.toFixed(2)}) | LatSlip: ${m.maxLatSlip.toFixed(2)} (ever ${maxLatSlipEver.toFixed(2)}) | MinGap: ${gStr} (ever ${mgEver}) | dRho: [${m.minDRho.toFixed(3)}, +${m.maxDRho.toFixed(3)}] | Curl: ${m.maxCurl.toFixed(1)} | NaN: ${m.nanCount}`;
+  }
+
+  requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>
